@@ -1,0 +1,14 @@
+Source: bbb-plugin-arena-3d
+Section: web
+Priority: extra
+Maintainer: Arthurk12 <arthur@mconf.com>
+Build-Depends: debhelper (>= 13), nodejs (>= 22)
+Standards-Version: 4.1.4
+Homepage: https://github.com/mconf/bbb-plugin-arena-3d
+
+Package: bbb-plugin-arena-3d
+Architecture: all
+Depends: ${misc:Depends}, nodejs
+Description: Retro first-person arena game for BigBlueButton sessions
+ Moderators start a match in the media area where every attendee
+ runs, jumps and shoots in a shared 3D arena.

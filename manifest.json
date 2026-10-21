@@ -1,0 +1,51 @@
+{
+  "requiredSdkVersion": "^1.0.0-beta.1",
+  "name": "BbbPluginArena3d",
+  "version": "0.1.0",
+  "javascriptEntrypointUrl": "BbbPluginArena3d.js",
+  "localesBaseUrl": "locales",
+  "dataChannels": [
+    {
+      "name": "match",
+      "pushPermission": [
+        "moderator"
+      ],
+      "replaceOrDeletePermission": [
+        "moderator"
+      ]
+    },
+    {
+      "name": "players",
+      "pushPermission": [
+        "all"
+      ],
+      "replaceOrDeletePermission": [
+        "creator",
+        "moderator"
+      ]
+    }
+  ],
+  "settingsSchema": [
+    {
+      "name": "debug",
+      "label": "Enable debug logs",
+      "required": false,
+      "defaultValue": false,
+      "type": "boolean"
+    },
+    {
+      "name": "maxPlayers",
+      "label": "Maximum players drawn at once",
+      "required": false,
+      "defaultValue": 16,
+      "type": "int"
+    },
+    {
+      "name": "renderScale",
+      "label": "Render resolution scale (lower is faster and blockier)",
+      "required": false,
+      "defaultValue": 0.75,
+      "type": "float"
+    }
+  ]
+}
