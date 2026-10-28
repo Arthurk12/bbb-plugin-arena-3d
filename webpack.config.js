@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path');
+const webpack = require('webpack');
 
 const PLUGIN_NAME = 'BbbPluginArena3d';
 
@@ -8,12 +9,8 @@ module.exports = {
   entry: './src/index.tsx',
   output: {
     filename: `${PLUGIN_NAME}.js`,
-    // The game (three.js) is a separate chunk, fetched only by people who open the arena.
-    chunkFilename: `${PLUGIN_NAME}.[name].[contenthash:8].js`,
     library: PLUGIN_NAME,
     libraryTarget: 'umd',
-    // Chunks load from wherever the bundle was loaded from (read from its <script> at startup).
-    publicPath: 'auto',
     // Keeps this bundle's chunk loader apart from the client's and other plugins' webpack runtimes.
     uniqueName: PLUGIN_NAME,
     globalObject: 'this',
@@ -71,16 +68,16 @@ module.exports = {
   resolve: {
     extensions: ['.js', '.jsx', '.tsx', '.ts'],
   },
-  optimization: {
-    // The game and three.js download together, in one request.
-    splitChunks: false,
-  },
   performance: {
-    // three.js alone is ~600 KB minified, in the game's chunk.
+    // three.js alone is ~600 KB minified, and it ships inside the single bundle.
     maxAssetSize: 2 * 1024 * 1024,
     maxEntrypointSize: 2 * 1024 * 1024,
   },
   plugins: [
+    // BBB loads only the manifest's javascriptEntrypointUrl, so a split chunk fails to load.
+    new webpack.optimize.LimitChunkCountPlugin({
+      maxChunks: 1,
+    }),
     new CopyWebpackPlugin({
       patterns: [
         { from: 'manifest.json', to: './' },

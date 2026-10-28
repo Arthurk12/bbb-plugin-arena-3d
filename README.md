@@ -18,8 +18,8 @@ downloads no assets and uses no third-party game content.
 - **Media area:** while a match runs, the arena replaces the presentation for everyone. Each
   person can switch back with the media-area option **Show presentation** / **Show Arena 3D**.
   That choice is stored per browser, per match.
-- **Lazy download:** three.js and the game are a separate chunk (~600 KB), downloaded only when
-  the arena is shown. The always-loaded bundle holds only the plugin wiring.
+- **Single bundle:** three.js and the game ship in the plugin's only JS file, since BBB loads
+  just the manifest's entrypoint. The game code runs only when the arena is shown.
 
 ## Gameplay
 

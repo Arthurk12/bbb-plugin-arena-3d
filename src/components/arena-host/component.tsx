@@ -6,10 +6,10 @@ import { intlMessages } from './messages';
 import Styled from './styles';
 import { ArenaHostProps } from './types';
 
-// three.js and the game download only when someone opens the arena.
-const ArenaView = React.lazy(() => import(/* webpackChunkName: "game" */ '../arena/component'));
+// The build is a single chunk: this defers running three.js and the game, not downloading them.
+const ArenaView = React.lazy(() => import('../arena/component'));
 
-/** Main-area content: downloads the game, and shows a message while it loads or if it fails. */
+/** Main-area content: starts the game, and shows a message while it loads or if it fails. */
 function ArenaHost({ session }: ArenaHostProps) {
   const { intl, pluginName } = useStore(session.state);
   const loading = <Styled.Message>{intl.formatMessage(intlMessages.loading)}</Styled.Message>;
