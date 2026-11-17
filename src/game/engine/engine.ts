@@ -147,7 +147,7 @@ export const createArenaEngine = ({
   camera.rotation.order = 'YXZ';
   scene.add(camera);
   const viewModel = createViewModel(camera);
-  const effects = createEffects(scene);
+  const effects = createEffects(scene, world.solids);
   const audio = createArenaAudio();
   const input = createInputController(canvas);
   const snapshots = createSnapshotStore();
@@ -262,6 +262,8 @@ export const createArenaEngine = ({
     const distance = rayBoxes(from, dir, world.solids, REMOTE_TRACER_RANGE);
     const remoteWeapon = weaponAt(message.w);
     effects.tracer(from, pointAlong(from, dir, distance), WEAPONS[remoteWeapon].tracerColor, now);
+    // Where a remote shot met a wall, it leaves sparks and a mark there too.
+    if (distance < REMOTE_TRACER_RANGE) effects.spark(pointAlong(from, dir, distance), false, now);
     play(SOUND_BY_WEAPON[remoteWeapon], volumeAt(from));
   };
 
