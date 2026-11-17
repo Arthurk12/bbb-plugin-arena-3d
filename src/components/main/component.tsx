@@ -22,7 +22,7 @@ import { ArenaPluginProps, MainContentProps } from './types';
 function MainContent({ pluginApi, intl }: MainContentProps) {
   const { isModerator, userId: currentUserId } = useCurrentUserRole(pluginApi);
   const {
-    match, start, newRound, stop,
+    match, loaded, start, newRound, stop,
   } = useMatchState(pluginApi);
   const matchActive = !!match?.active;
   const [hidden, setHidden] = useHiddenArena(match?.entryId);
@@ -61,7 +61,9 @@ function MainContent({ pluginApi, intl }: MainContentProps) {
   // Wait for the settings so the first frame already renders at the configured scale.
   const showArena = matchActive && !hidden && settingsReady;
   useArenaMainArea({ pluginApi, showArena, session });
-  useMatchNotifications({ pluginApi, intl, match });
+  useMatchNotifications({
+    pluginApi, intl, match, loaded,
+  });
 
   const [adminOpen, setAdminOpen] = useState(false);
   const openAdmin = useCallback(() => setAdminOpen(true), []);

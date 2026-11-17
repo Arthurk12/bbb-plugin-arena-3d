@@ -40,4 +40,5 @@ export interface MatchNotificationsOptions {
   pluginApi: PluginApi;
   intl: IntlShape;
   match: MatchState | null;
+  loaded: boolean;
 }
