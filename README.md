@@ -56,7 +56,7 @@ All traffic goes through two plugin data channels; there is no game server.
 
 | Channel | Written by | Content |
 |---|---|---|
-| `match` | moderators | `{ active, round }`: one entry per match, replaced on a new round |
+| `match` | moderators | `{ active, round }`: a single entry, replaced on a new round and on stop; a new match deletes it and pushes a new one |
 | `players` | everyone (one entry each, replaced) | position, aim, health, weapon, shot and hit counters, deaths and who caused them, recent hits |
 
 - **Sending:** each player replaces its own entry at most every 250 ms, only when something
