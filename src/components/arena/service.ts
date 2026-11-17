@@ -19,6 +19,9 @@ export const createEngineContextReader = (getState: () => ArenaSessionState) => 
         fallbackName: state.intl.formatMessage(intlMessages.unknownPlayer),
         maxPlayers: state.maxPlayers,
         renderScale: state.renderScale,
+        round: state.round,
+        relayUrl: state.relayUrl,
+        sessionToken: state.sessionToken,
       };
     }
     return context;

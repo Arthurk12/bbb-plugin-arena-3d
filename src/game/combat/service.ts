@@ -1,5 +1,4 @@
 import { MAX_HEALTH } from '../../net/constants';
-import { PlayerPayload } from '../../net/types';
 import { RESPAWN_DELAY_MS, SPAWN_PROTECTION_MS } from './constants';
 import { CombatState, DamageOutcome } from './types';
 
@@ -69,11 +68,3 @@ export const respawn = (state: CombatState, now: number): CombatState => ({
 
 /** A new round: everyone starts from zero, alive. */
 export const resetForRound = (now: number): CombatState => createCombatState(now);
-
-/** After a reload in the same round, the score stored in our entry carries on. */
-export const restoreScore = (state: CombatState, stored: PlayerPayload): CombatState => ({
-  ...state,
-  deaths: stored.dt,
-  lastKiller: stored.lk,
-  killedBy: { ...stored.kb },
-});

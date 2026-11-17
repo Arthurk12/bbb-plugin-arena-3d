@@ -1,4 +1,13 @@
+import { ConnectionStatus } from '../../relay-client/types';
 import { WeaponId } from '../weapons/types';
+
+export interface Score {
+  kills: number;
+  deaths: number;
+}
+
+/** The relay connection as the HUD shows it; `idle` while no match runs. */
+export type ConnectionState = ConnectionStatus | 'idle';
 
 export interface FeedItem {
   id: number;
@@ -37,4 +46,6 @@ export interface HudState {
   muted: boolean;
   /** The browser could not start WebGL. */
   webglError: boolean;
+  /** The relay connection, for the "connecting…" notice. */
+  connection: ConnectionState;
 }

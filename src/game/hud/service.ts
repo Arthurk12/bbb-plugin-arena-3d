@@ -1,8 +1,9 @@
 import { DEFAULT_WEAPON } from '../weapons/constants';
 import { MAX_HEALTH } from '../../net/constants';
-import { Score } from '../../net/types';
 import { FEED_SIZE, FEED_TTL_MS } from './constants';
-import { FeedItem, HudState, ScoreRow } from './types';
+import {
+  FeedItem, HudState, Score, ScoreRow,
+} from './types';
 
 export const initialHudState = (): HudState => ({
   locked: false,
@@ -21,6 +22,7 @@ export const initialHudState = (): HudState => ({
   damageSeq: 0,
   muted: false,
   webglError: false,
+  connection: 'idle',
 });
 
 /** Best first: most kills, then fewest deaths, then a stable order. */

@@ -24,13 +24,19 @@ function ArenaView({ session }: ArenaViewProps) {
     const { pluginName } = session.state.getSnapshot();
     const engine = createArenaEngine({
       container,
-      net: session.net,
       hud,
       getContext: createEngineContextReader(session.state.getSnapshot),
       onWebglError: (error) => pluginLogger.error(
         { logCode: LOG_CODES.WEBGL_ERROR, extraInfo: { error: String(error) } },
         `WebGL is unavailable for ${pluginName}`,
       ),
+      onConnectionStatus: (status) => {
+        if (status !== 'failed') return;
+        pluginLogger.warn(
+          { logCode: LOG_CODES.RELAY_FAILED, extraInfo: { relayUrl: session.state.getSnapshot().relayUrl } },
+          `Cannot reach the arena relay for ${pluginName}`,
+        );
+      },
     });
     engineRef.current = engine;
     pluginLogger.info({ logCode: LOG_CODES.STARTED }, `Plugin started: ${pluginName}`);
