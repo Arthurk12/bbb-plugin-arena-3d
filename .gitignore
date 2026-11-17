@@ -14,3 +14,4 @@ test-results
 .env
 coverage/*
 .asset-staging/
+relay/dist

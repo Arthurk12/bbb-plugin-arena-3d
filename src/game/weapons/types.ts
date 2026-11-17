@@ -29,7 +29,10 @@ export interface ShotTarget {
 
 export interface ShotResult {
   damageByUser: Map<string, number>;
+  /** Any pellet hit a head (drives the shooter's hit marker and sound). */
   headshot: boolean;
+  /** Who was hit in the head, so each victim's hit can say whether it was a headshot. */
+  headshotUsers: Set<string>;
   /** Where each pellet stopped (a wall, a player, or its range). */
   impacts: Vec3[];
   /** Whether each impact hit a player (for the effect drawn there). */

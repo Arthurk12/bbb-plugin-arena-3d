@@ -1,0 +1,175 @@
+import { Vec3 } from '../commons/types';
+import { CLIENT_MESSAGE, ENV_KIND, SERVER_MESSAGE } from './constants';
+
+// ---- client → relay ----
+
+export interface HelloMessage {
+  type: typeof CLIENT_MESSAGE.HELLO;
+  v: number;
+  round: string;
+}
+
+export interface PoseMessage {
+  type: typeof CLIENT_MESSAGE.POSE;
+  /** Feet position, meters. */
+  p: Vec3;
+  /** Yaw, radians. */
+  y: number;
+  /** Pitch, radians. */
+  x: number;
+  /** Weapon index. */
+  w: number;
+  /** Whether the player is in the arena (false once they hide it). */
+  on: boolean;
+}
+
+export interface ShotMessage {
+  type: typeof CLIENT_MESSAGE.SHOT;
+  /** Shooter-wide sequence number, echoed in a `reject`. */
+  id: number;
+  /** Relay time of the remote state the shot was aimed at, ms. */
+  vt: number;
+  /** Eye position the shot left from. */
+  o: Vec3;
+  y: number;
+  x: number;
+  w: number;
+  /** Seed of the pellet spread (see `seededRandom`). */
+  seed: number;
+}
+
+export type EnvKind = typeof ENV_KIND[keyof typeof ENV_KIND];
+
+export interface EnvMessage {
+  type: typeof CLIENT_MESSAGE.ENV;
+  kind: EnvKind;
+  amount: number;
+  /** What caused it (`fall`, `slime`, `kit`…), for logs only. */
+  cause: string;
+}
+
+export interface PingMessage {
+  type: typeof CLIENT_MESSAGE.PING;
+  /** Client clock when sent, echoed back. */
+  c: number;
+}
+
+export type ClientMessage = HelloMessage | PoseMessage | ShotMessage | EnvMessage | PingMessage;
+
+// ---- relay → client ----
+
+/** [kills, deaths] */
+export type ScoreLine = [number, number];
+export type Scores = Record<string, ScoreLine>;
+
+export interface PlayerInfo {
+  id: string;
+  name: string;
+  p: Vec3;
+  y: number;
+  x: number;
+  w: number;
+  hp: number;
+  alive: boolean;
+  on: boolean;
+}
+
+export interface WelcomeMessage {
+  type: typeof SERVER_MESSAGE.WELCOME;
+  you: string;
+  /** Relay clock, ms. */
+  now: number;
+  spectator: boolean;
+  players: PlayerInfo[];
+  scores: Scores;
+  /** Display names of everyone in `scores`, including players who left. */
+  names: Record<string, string>;
+}
+
+/** [id, x, y, z, yaw, pitch, weapon, flags] */
+export type SnapshotEntry = [string, number, number, number, number, number, number, number];
+
+export interface SnapshotMessage {
+  type: typeof SERVER_MESSAGE.SNAPSHOT;
+  /** Relay clock, ms: the time these poses are drawn at. */
+  t: number;
+  players: SnapshotEntry[];
+}
+
+export interface ShotEvent {
+  type: typeof SERVER_MESSAGE.SHOT;
+  by: string;
+  id: number;
+  o: Vec3;
+  y: number;
+  x: number;
+  w: number;
+  seed: number;
+}
+
+export interface HitEvent {
+  type: typeof SERVER_MESSAGE.HIT;
+  by: string;
+  to: string;
+  dmg: number;
+  head: boolean;
+  /** Target's health after the hit. */
+  hp: number;
+}
+
+export interface HealthEvent {
+  type: typeof SERVER_MESSAGE.HEALTH;
+  id: string;
+  hp: number;
+}
+
+export interface KillEvent {
+  type: typeof SERVER_MESSAGE.KILL;
+  /** Killer; equals `to` for a suicide or the level. */
+  by: string;
+  to: string;
+  /** Killer's weapon index, or ENVIRONMENT_WEAPON. */
+  w: number;
+}
+
+export interface SpawnEvent {
+  type: typeof SERVER_MESSAGE.SPAWN;
+  id: string;
+  p: Vec3;
+  y: number;
+}
+
+export interface ScoresMessage {
+  type: typeof SERVER_MESSAGE.SCORES;
+  scores: Scores;
+  names: Record<string, string>;
+}
+
+export interface JoinEvent {
+  type: typeof SERVER_MESSAGE.JOIN;
+  id: string;
+  name: string;
+}
+
+export interface LeaveEvent {
+  type: typeof SERVER_MESSAGE.LEAVE;
+  id: string;
+}
+
+export interface PongMessage {
+  type: typeof SERVER_MESSAGE.PONG;
+  c: number;
+  /** Relay clock, ms. */
+  s: number;
+}
+
+export type RejectReason = 'dead' | 'spectator' | 'cooldown' | 'origin' | 'weapon';
+
+export interface RejectMessage {
+  type: typeof SERVER_MESSAGE.REJECT;
+  id: number;
+  reason: RejectReason;
+}
+
+export type ServerMessage = WelcomeMessage | SnapshotMessage | ShotEvent | HitEvent | HealthEvent
+  | KillEvent | SpawnEvent | ScoresMessage | JoinEvent | LeaveEvent | PongMessage | RejectMessage;
