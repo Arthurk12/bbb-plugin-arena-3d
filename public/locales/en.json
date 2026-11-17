@@ -16,10 +16,10 @@
   "hud.clickToPlay": "Click to play",
   "hud.connecting": "Connecting to the arena server…",
   "hud.connectionFailed": "Can't reach the arena server. Trying again…",
-  "hud.controls.aim": "Mouse: aim · Click: shoot",
+  "hud.controls.aim": "Mouse: aim · Click: shoot · Right click: sniper scope",
   "hud.controls.move": "W A S D or arrows: move · Space: jump · Shift: walk",
   "hud.controls.other": "Tab: scores · M: sound on/off · Esc: release the mouse",
-  "hud.controls.weapons": "1 / 2, Q or mouse wheel: switch weapon",
+  "hud.controls.weapons": "1–4, Q or mouse wheel: switch weapon",
   "hud.deaths": "Deaths",
   "hud.fraggedBy": "Fragged by {name}",
   "hud.frags": "Frags",
@@ -39,5 +39,7 @@
   "scoreboard.title": "Scores",
   "scoreboard.you": "(you)",
   "weapon.blaster": "Blaster",
-  "weapon.shotgun": "Shotgun"
+  "weapon.shotgun": "Shotgun",
+  "weapon.smg": "SMG",
+  "weapon.sniper": "Sniper"
 }

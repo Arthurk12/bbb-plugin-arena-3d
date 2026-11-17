@@ -1,6 +1,6 @@
 import { WeaponDefinition, WeaponId } from './types';
 
-export const WEAPON_IDS = ['blaster', 'shotgun'] as const;
+export const WEAPON_IDS = ['blaster', 'shotgun', 'smg', 'sniper'] as const;
 
 export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
   blaster: {
@@ -16,6 +16,7 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
     falloff: { start: 40, end: 100, minFactor: 0.7 },
     recoil: 0.012,
     tracerColor: 0xffd34d,
+    scope: null,
   },
   shotgun: {
     id: 'shotgun',
@@ -30,6 +31,37 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
     falloff: { start: 8, end: 30, minFactor: 0.3 },
     recoil: 0.05,
     tracerColor: 0xff8a3d,
+    scope: null,
+  },
+  smg: {
+    id: 'smg',
+    cooldownMs: 100,
+    pellets: 1,
+    spread: 0.022,
+    damage: 8,
+    range: 100,
+    zoneMultipliers: {
+      head: 1.5, torso: 1, arms: 0.75, legs: 0.75,
+    },
+    falloff: { start: 15, end: 45, minFactor: 0.5 },
+    recoil: 0.006,
+    tracerColor: 0x9dff5c,
+    scope: null,
+  },
+  sniper: {
+    id: 'sniper',
+    cooldownMs: 1400,
+    pellets: 1,
+    spread: 0.03,
+    damage: 70,
+    range: 250,
+    zoneMultipliers: {
+      head: 2, torso: 1, arms: 0.6, legs: 0.6,
+    },
+    falloff: null,
+    recoil: 0.06,
+    tracerColor: 0x7fd4ff,
+    scope: { fov: 20, spread: 0, zoomMs: 150 },
   },
 };
 

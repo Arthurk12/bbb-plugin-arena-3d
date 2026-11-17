@@ -2,7 +2,9 @@ import { seededRandom } from '../../src/commons/random';
 import { createHitbox, writeHitbox } from '../../src/game/hitbox/service';
 import { PLAYER } from '../../src/game/player/constants';
 import { WEAPON_IDS, WEAPONS } from '../../src/game/weapons/constants';
-import { pelletDirections, resolveShot, weaponAt } from '../../src/game/weapons/service';
+import {
+  pelletDirections, resolveShot, shotSpread, weaponAt,
+} from '../../src/game/weapons/service';
 import { ShotTarget } from '../../src/game/weapons/types';
 import { RELAY_LIMITS, RELAY_TIMING } from '../../src/protocol/constants';
 import { ShotMessage } from '../../src/protocol/types';
@@ -57,7 +59,13 @@ export const evaluateShot = (shot: ShotMessage, ctx: ShotContext): ShotVerdict =
     targets.push({ userId: other.userId, hitbox });
   });
 
-  const directions = pelletDirections(shot.y, shot.x, weapon, seededRandom(shot.seed));
+  const directions = pelletDirections(
+    shot.y,
+    shot.x,
+    weapon.pellets,
+    shotSpread(weapon, shot.ads),
+    seededRandom(shot.seed),
+  );
   const result = resolveShot(shot.o, directions, ctx.level.blocks, targets, weapon);
   return { ok: true, viewTime, result };
 };

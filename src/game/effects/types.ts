@@ -1,8 +1,8 @@
 import { Vec3 } from '../../commons/types';
 
 export type SoundId =
-  | 'blaster' | 'shotgun' | 'hit' | 'headshot' | 'frag' | 'jump' | 'pad' | 'pain' | 'death'
-  | 'pickup' | 'respawn';
+  | 'blaster' | 'shotgun' | 'smg' | 'sniper' | 'hit' | 'headshot' | 'frag' | 'jump' | 'pad'
+  | 'pain' | 'death' | 'pickup' | 'respawn';
 
 export interface ArenaAudio {
   /** Browsers only start audio from a user gesture. */

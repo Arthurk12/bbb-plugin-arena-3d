@@ -12,6 +12,16 @@ export interface Falloff {
   minFactor: number;
 }
 
+/** An optical sight, looked through while the secondary button is held. */
+export interface Scope {
+  /** Field of view fully zoomed in, degrees. */
+  fov: number;
+  /** Pellet spread when fired fully zoomed in (`spread` is the spread from the hip). */
+  spread: number;
+  /** Time to zoom in fully, ms. */
+  zoomMs: number;
+}
+
 export interface WeaponDefinition {
   id: WeaponId;
   cooldownMs: number;
@@ -29,6 +39,8 @@ export interface WeaponDefinition {
   /** Camera kick per shot, radians. */
   recoil: number;
   tracerColor: number;
+  /** Null: no scope. */
+  scope: Scope | null;
 }
 
 /** A remote player as a shot sees them. */

@@ -36,6 +36,8 @@ export interface ShotMessage {
   w: number;
   /** Seed of the pellet spread (see `seededRandom`). */
   seed: number;
+  /** Fired fully zoomed in through the weapon's scope. */
+  ads: boolean;
 }
 
 export type EnvKind = typeof ENV_KIND[keyof typeof ENV_KIND];

@@ -39,13 +39,14 @@ import { createAvatarCrowd } from '../remote/crowd';
 import { RemoteAvatar } from '../remote/types';
 import { VIEW_MODEL, WEAPONS } from '../weapons/constants';
 import {
-  aimDirection, canFire, cycleWeapon, pelletDirections, resolveShot, weaponAt, weaponIndex,
+  aimDirection, canFire, cycleWeapon, pelletDirections, resolveShot, shotSpread, weaponAt,
+  weaponIndex,
 } from '../weapons/service';
 import { ShotTarget, WeaponId } from '../weapons/types';
 import { createViewModel } from '../weapons/view-model';
 import {
   CAMERA, ENV_DAMAGE_BATCH, LIMB_HIT_VOLUME, MAX_FRAME_DT, MAX_TRACERS_PER_SHOT,
-  PICKUP_REACH_HEIGHT, POSE_SEND, SPEED_SMOOTHING,
+  PICKUP_REACH_HEIGHT, POSE_SEND, SCOPE_LENS_AT, SPEED_SMOOTHING,
 } from './constants';
 import { ArenaEngine, EngineOptions } from './types';
 
@@ -66,7 +67,9 @@ interface SentPose {
 
 const IDLE_ENGINE: ArenaEngine = { requestPlay: () => {}, dispose: () => {} };
 
-const SOUND_BY_WEAPON: Record<WeaponId, SoundId> = { blaster: 'blaster', shotgun: 'shotgun' };
+const SOUND_BY_WEAPON: Record<WeaponId, SoundId> = {
+  blaster: 'blaster', shotgun: 'shotgun', smg: 'smg', sniper: 'sniper',
+};
 
 /** Seeds are 32-bit unsigned (see `seededRandom`). */
 const SEED_RANGE = 2 ** 32;
@@ -154,6 +157,8 @@ export const createArenaEngine = ({
   let lastShotAt = -Infinity;
   /** A freshly drawn gun can't shoot until it is up. */
   let weaponReadyAt = 0;
+  /** How far the scope is zoomed in, 0 to 1. */
+  let zoom = 0;
   let shotId = 0;
   let hazardDamage = 0;
   let fellThisLife = false;
@@ -357,8 +362,22 @@ export const createArenaEngine = ({
   };
 
   const look = (lookX: number, lookY: number) => {
-    yaw -= lookX * MOUSE_SENSITIVITY;
-    pitch = clamp(pitch - lookY * MOUSE_SENSITIVITY, -MAX_PITCH, MAX_PITCH);
+    // Zoomed in, the same mouse move turns less, so aiming keeps its feel.
+    const sensitivity = MOUSE_SENSITIVITY * (camera.fov / CAMERA.fov);
+    yaw -= lookX * sensitivity;
+    pitch = clamp(pitch - lookY * sensitivity, -MAX_PITCH, MAX_PITCH);
+  };
+
+  /** Zooms in while the secondary button is held with a scoped gun up; out otherwise. */
+  const updateZoom = (aiming: boolean, dt: number, now: number) => {
+    const { scope } = WEAPONS[weapon];
+    const wanted = scope !== null && aiming && combat.alive && !spectator && now >= weaponReadyAt;
+    const step = scope ? (dt * 1000) / scope.zoomMs : 1;
+    zoom = wanted ? Math.min(1, zoom + step) : Math.max(0, zoom - step);
+    const fov = scope ? CAMERA.fov + (scope.fov - CAMERA.fov) * zoom : CAMERA.fov;
+    if (camera.fov === fov) return;
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
   };
 
   const switchWeapon = (next: WeaponId, now: number) => {
@@ -469,7 +488,14 @@ export const createArenaEngine = ({
     lastShotAt = now;
     shotId += 1;
     const seed = Math.floor(Math.random() * SEED_RANGE);
-    const directions = pelletDirections(yaw, pitch, definition, seededRandom(seed));
+    const scoped = zoom >= 1 && definition.scope !== null;
+    const directions = pelletDirections(
+      yaw,
+      pitch,
+      definition.pellets,
+      shotSpread(definition, scoped),
+      seededRandom(seed),
+    );
     const result = resolveShot(eye, directions, world.solids, targets, definition);
     if (renderTime !== null) {
       send({
@@ -481,6 +507,7 @@ export const createArenaEngine = ({
         x: pitch,
         w: weaponIndex(weapon),
         seed,
+        ads: scoped,
       });
     }
     const forward = aimDirection(yaw, pitch);
@@ -549,6 +576,7 @@ export const createArenaEngine = ({
       health: combat.health,
       alive: combat.alive,
       weapon,
+      scoped: zoom >= SCOPE_LENS_AT,
       kills: own?.kills ?? 0,
       deaths: own?.deaths ?? 0,
       killer: combat.lastKiller,
@@ -576,6 +604,7 @@ export const createArenaEngine = ({
     if (controls.locked) look(controls.lookX, controls.lookY);
     if (controls.weaponSlot !== null) switchWeapon(weaponAt(controls.weaponSlot), now);
     if (controls.weaponStep) switchWeapon(cycleWeapon(weapon, controls.weaponStep), now);
+    updateZoom(controls.aiming && controls.locked, dt, now);
     if (controls.toggleMute) {
       muted = !muted;
       audio.setMuted(muted);
@@ -587,7 +616,7 @@ export const createArenaEngine = ({
           forward: controls.forward,
           strafe: controls.strafe,
           jump: controls.jump,
-          walk: controls.walk,
+          walk: controls.walk || zoom > 0,
           yaw,
         }
         : {
@@ -602,7 +631,12 @@ export const createArenaEngine = ({
     if (controls.firing && controls.locked && combat.alive && !spectator) fire(targets, now);
     placeCamera();
     builtLevel.animate(now, camera.position);
-    viewModel.update(dt, Math.hypot(body.velocity[0], body.velocity[2]), now, combat.alive);
+    viewModel.update(
+      dt,
+      Math.hypot(body.velocity[0], body.velocity[2]),
+      now,
+      combat.alive && zoom < SCOPE_LENS_AT,
+    );
     effects.update(now);
     sendPose(now);
     updateHud(controls.locked, controls.scoreboard, now);

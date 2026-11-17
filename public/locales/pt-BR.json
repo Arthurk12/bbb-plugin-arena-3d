@@ -16,10 +16,10 @@
   "hud.clickToPlay": "Clique para jogar",
   "hud.connecting": "Conectando ao servidor da arena…",
   "hud.connectionFailed": "Não foi possível conectar ao servidor da arena. Tentando de novo…",
-  "hud.controls.aim": "Mouse: mirar · Clique: atirar",
+  "hud.controls.aim": "Mouse: mirar · Clique: atirar · Botão direito: mira óptica da sniper",
   "hud.controls.move": "W A S D ou setas: mover · Espaço: pular · Shift: andar",
   "hud.controls.other": "Tab: placar · M: liga/desliga o som · Esc: soltar o mouse",
-  "hud.controls.weapons": "1 / 2, Q ou rodinha do mouse: trocar de arma",
+  "hud.controls.weapons": "1–4, Q ou rodinha do mouse: trocar de arma",
   "hud.deaths": "Mortes",
   "hud.fraggedBy": "Eliminado por {name}",
   "hud.frags": "Abates",
@@ -39,5 +39,7 @@
   "scoreboard.title": "Placar",
   "scoreboard.you": "(você)",
   "weapon.blaster": "Blaster",
-  "weapon.shotgun": "Escopeta"
+  "weapon.shotgun": "Escopeta",
+  "weapon.smg": "Submetralhadora",
+  "weapon.sniper": "Sniper"
 }

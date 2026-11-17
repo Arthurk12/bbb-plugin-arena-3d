@@ -4,6 +4,8 @@ export interface InputSnapshot {
   jump: boolean;
   walk: boolean;
   firing: boolean;
+  /** Secondary button held (a scope). */
+  aiming: boolean;
   scoreboard: boolean;
   /** Mouse movement since the last read, pixels. */
   lookX: number;

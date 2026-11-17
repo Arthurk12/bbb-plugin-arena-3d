@@ -52,7 +52,8 @@ function Hud({ hud, session, onPlay }: HudProps) {
             : intlMessages.connecting)}
         </Styled.Notice>
       ) : null}
-      {state.alive && state.locked ? <Styled.Crosshair /> : null}
+      {state.scoped ? <Styled.Scope /> : null}
+      {state.alive && state.locked && !state.scoped ? <Styled.Crosshair /> : null}
       {state.hitMarkerSeq > 0 ? (
         <Styled.HitMarker key={state.hitMarkerSeq} $kind={state.hitMarker} />
       ) : null}

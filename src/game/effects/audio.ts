@@ -66,6 +66,15 @@ const recipes = (noiseBuffer: AudioBuffer): Record<SoundId, Recipe> => ({
     noise(ctx, out, at, noiseBuffer, 1800, 0.35, 1);
     tone(ctx, out, at, 'sawtooth', 160, 40, 0.25, 0.6);
   },
+  smg: (ctx, out, at) => {
+    tone(ctx, out, at, 'square', 700, 180, 0.07, 0.35);
+    noise(ctx, out, at, noiseBuffer, 2600, 0.06, 0.35);
+  },
+  sniper: (ctx, out, at) => {
+    tone(ctx, out, at, 'sine', 1900, 700, 0.06, 0.3);
+    noise(ctx, out, at, noiseBuffer, 1400, 0.55, 1);
+    tone(ctx, out, at, 'sawtooth', 200, 30, 0.5, 0.7);
+  },
   hit: (ctx, out, at) => tone(ctx, out, at, 'sine', 1400, 1100, 0.06, 0.5),
   headshot: (ctx, out, at) => {
     tone(ctx, out, at, 'square', 1800, 1600, 0.05, 0.4);

@@ -11,10 +11,13 @@ export const KEY_BINDINGS = {
 };
 
 /** Digit keys pick a weapon by position. */
-export const WEAPON_KEYS = ['Digit1', 'Digit2'];
+export const WEAPON_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4'];
 
 export const MOUSE_SENSITIVITY = 0.0022; // radians per pixel
 
 export const MAX_PITCH = 1.45; // radians
 
 export const PRIMARY_BUTTON = 0;
+
+/** Held to look through a scope. */
+export const SECONDARY_BUTTON = 2;

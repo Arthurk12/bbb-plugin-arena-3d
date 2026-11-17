@@ -11,6 +11,7 @@ export const initialHudState = (): HudState => ({
   health: MAX_HEALTH,
   alive: true,
   weapon: DEFAULT_WEAPON,
+  scoped: false,
   kills: 0,
   deaths: 0,
   killer: '',

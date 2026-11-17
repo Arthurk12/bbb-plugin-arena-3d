@@ -17,12 +17,18 @@ export const aimDirection = (yaw: number, pitch: number): Vec3 => {
 export const pelletDirections = (
   yaw: number,
   pitch: number,
-  weapon: WeaponDefinition,
+  pellets: number,
+  spread: number,
   random: () => number,
-): Vec3[] => Array.from({ length: weapon.pellets }, () => aimDirection(
-  yaw + (random() * 2 - 1) * weapon.spread,
-  pitch + (random() * 2 - 1) * weapon.spread,
+): Vec3[] => Array.from({ length: pellets }, () => aimDirection(
+  yaw + (random() * 2 - 1) * spread,
+  pitch + (random() * 2 - 1) * spread,
 ));
+
+/** Spread of a shot: tighter through the scope, for a weapon that has one. */
+export const shotSpread = (weapon: WeaponDefinition, scoped: boolean): number => (
+  scoped && weapon.scope ? weapon.scope.spread : weapon.spread
+);
 
 export const canFire = (lastShotAt: number, now: number, weapon: WeaponDefinition): boolean => (
   now - lastShotAt >= weapon.cooldownMs

@@ -24,3 +24,6 @@ export const HIT_MARKER: Record<HitMarker, { color: string; size: number }> = {
 
 /** Shown next to the weapon in the kill feed when the frag was a headshot. */
 export const HEADSHOT_ICON = '◎';
+
+/** Radius of the round view through a scope. */
+export const SCOPE_RADIUS = '38vmin';

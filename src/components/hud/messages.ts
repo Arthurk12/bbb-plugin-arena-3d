@@ -19,12 +19,12 @@ export const intlMessages = defineMessages({
   controlsAim: {
     id: 'hud.controls.aim',
     description: 'Controls help: aiming and shooting',
-    defaultMessage: 'Mouse: aim · Click: shoot',
+    defaultMessage: 'Mouse: aim · Click: shoot · Right click: sniper scope',
   },
   controlsWeapons: {
     id: 'hud.controls.weapons',
     description: 'Controls help: weapons',
-    defaultMessage: '1 / 2, Q or mouse wheel: switch weapon',
+    defaultMessage: '1–4, Q or mouse wheel: switch weapon',
   },
   controlsOther: {
     id: 'hud.controls.other',
@@ -55,6 +55,16 @@ export const intlMessages = defineMessages({
     id: 'weapon.shotgun',
     description: 'Name of the shotgun',
     defaultMessage: 'Shotgun',
+  },
+  smg: {
+    id: 'weapon.smg',
+    description: 'Name of the submachine gun',
+    defaultMessage: 'SMG',
+  },
+  sniper: {
+    id: 'weapon.sniper',
+    description: 'Name of the sniper rifle',
+    defaultMessage: 'Sniper',
   },
   fraggedBy: {
     id: 'hud.fraggedBy',

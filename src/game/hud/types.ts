@@ -35,6 +35,8 @@ export interface HudState {
   health: number;
   alive: boolean;
   weapon: WeaponId;
+  /** Looking through a scope: its lens fills the screen. */
+  scoped: boolean;
   kills: number;
   deaths: number;
   /** Who caused our last death; equals our id for a suicide. */

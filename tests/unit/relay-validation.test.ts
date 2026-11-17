@@ -8,7 +8,7 @@ const send = (message: unknown): string => JSON.stringify(message);
 const hello = { type: 'hello', v: 1, round: 'abc-123' };
 const pose = { type: 'pose', p: [1, 2, 3], y: 0.5, x: -0.1, w: 2, on: true };
 const shot = {
-  type: 'shot', id: 7, vt: 1000, o: [0, 1.5, 0], y: 0.2, x: 0, w: 1, seed: 42,
+  type: 'shot', id: 7, vt: 1000, o: [0, 1.5, 0], y: 0.2, x: 0, w: 1, seed: 42, ads: false,
 };
 const env = { type: 'env', kind: 'damage', amount: 10, cause: 'fall' };
 const ping = { type: 'ping', c: 123.5 };
@@ -76,6 +76,14 @@ describe('parseClientMessage', () => {
       expect(parseClientMessage(send({ ...pose, w: MAX_WEAPON_INDEX + 1 }))).toBeNull();
       expect(parseClientMessage(send({ ...shot, w: MAX_WEAPON_INDEX + 1 }))).toBeNull();
       expect(parseClientMessage(send({ ...pose, w: MAX_WEAPON_INDEX }))).not.toBeNull();
+    });
+
+    it('requires a shot to say whether it went through the scope', () => {
+      const { ads, ...withoutAds } = shot;
+      expect(ads).toBe(false);
+      expect(parseClientMessage(send(withoutAds))).toBeNull();
+      expect(parseClientMessage(send({ ...shot, ads: 1 }))).toBeNull();
+      expect(parseClientMessage(send({ ...shot, ads: true }))).toEqual({ ...shot, ads: true });
     });
   });
 

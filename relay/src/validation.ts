@@ -57,10 +57,10 @@ export const parseClientMessage = (raw: string): ClientMessage | null => {
     }
 
     case CLIENT_MESSAGE.SHOT: {
-      const { id, vt, o, y, x, w, seed } = data;
+      const { id, vt, o, y, x, w, seed, ads } = data;
       if (!isInt(id, 0, MAX_COUNTER) || !isFiniteNumber(vt) || !isVec3(o)
         || !isFiniteNumber(y) || !isFiniteNumber(x) || !isInt(w, 0, MAX_WEAPON_INDEX)
-        || !isInt(seed, 0, MAX_SEED)) {
+        || !isInt(seed, 0, MAX_SEED) || typeof ads !== 'boolean') {
         return null;
       }
       return {
@@ -72,6 +72,7 @@ export const parseClientMessage = (raw: string): ClientMessage | null => {
         x,
         w,
         seed,
+        ads,
       };
     }
 

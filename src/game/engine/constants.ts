@@ -34,3 +34,6 @@ export const POSE_SEND = {
 
 /** Hits we land on arms and legs sound softer than on the body. */
 export const LIMB_HIT_VOLUME = 0.6;
+
+/** Past this much zoom (0 to 1) the gun leaves the view and the scope's lens fills the screen. */
+export const SCOPE_LENS_AT = 0.5;

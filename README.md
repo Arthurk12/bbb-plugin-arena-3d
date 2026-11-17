@@ -25,8 +25,9 @@ downloads no assets and uses no third-party game content.
 
 - One level, *Rooftop Rumble*: a walled yard with a central tower, four buildings with stairs,
   two high ledges reached by jump pads, cover, and a slime pit that hurts.
-- Two hitscan weapons: the **Blaster** (precise, double damage on headshots) and the
-  **Shotgun** (nine pellets, short range).
+- Four hitscan weapons: the **Blaster** (precise, double damage on headshots), the
+  **Shotgun** (nine pellets, short range), the **SMG** (automatic: hold to fire, light
+  damage) and the **Sniper** (slow, kills with one headshot, optical scope).
 - Where a shot lands matters: the body has four zones (head, torso, arms, legs) that follow the
   avatar as it is drawn, turning with the player and lifting the arms with the aim. Each weapon
   multiplies its damage by zone, and loses damage with distance:
@@ -35,11 +36,16 @@ downloads no assets and uses no third-party game content.
   |---|---|---|---|---|---|
   | Blaster | 22 | ×2 | ×0.75 | 40 m | 70% (100 m) |
   | Shotgun | 9 per pellet, 9 pellets | ×1.25 | ×0.8 | 8 m | 30% (30 m) |
+  | SMG | 8 | ×1.5 | ×0.75 | 15 m | 50% (45 m) |
+  | Sniper | 70 | ×2 | ×0.6 | any distance | — |
 
 - The hit marker tells what you hit: red and larger for the head, grey and smaller for arms and
   legs. The kill feed shows the weapon of each frag and marks headshots with ◎.
 - Switching weapons lowers the gun in hand and raises the next one in about a quarter of a
   second; you can't shoot meanwhile. Everyone else sees the gun you hold.
+- **Sniper scope:** hold the right mouse button. The view zooms in (75° to 20°), the gun leaves
+  the screen, you walk, and the mouse turns slower with the zoom. Fully zoomed in, shots go
+  exactly where the crosshairs are; from the hip they spread.
 - 100 health; health kits on the map (local to each player: each one sees and takes their own).
 - Dying shows who fragged you and respawns you after 3 seconds at the spawn point farthest from
   everyone, with 1.5 s of protection.
@@ -54,9 +60,10 @@ Click the arena to capture the mouse, then:
 | W A S D / arrow keys | Move |
 | Mouse | Aim |
 | Left click | Shoot |
+| Right click (hold) | Sniper scope |
 | Space | Jump |
 | Shift | Walk (slower) |
-| 1 / 2, Q, mouse wheel | Switch weapon |
+| 1–4, Q, mouse wheel | Switch weapon |
 | Tab (hold) | Scoreboard |
 | M | Sound on/off |
 | Esc | Release the mouse |
@@ -85,7 +92,8 @@ WebSocket service next to BBB (see [Relay](#relay)).
   most 0.2 s of movement.
 - **Trust:** identity comes from BBB's session check in nginx, never from a message. Damage,
   kills and scores cannot be forged. Positions are still reported by each client and only
-  checked for speed, so a modified client can still see through walls or aim for you.
+  checked for speed, so a modified client can still see through walls or aim for you; the relay
+  also takes its word that a sniper shot went through the scope.
 
 ## Settings
 

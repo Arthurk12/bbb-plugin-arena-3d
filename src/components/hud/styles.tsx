@@ -1,6 +1,6 @@
 import styled, { css, keyframes } from 'styled-components';
 import { HitMarker as HitMarkerKind } from '../../game/hud/types';
-import { HIT_MARKER, HUD_COLORS, HUD_FONT } from './constants';
+import { HIT_MARKER, HUD_COLORS, HUD_FONT, SCOPE_RADIUS } from './constants';
 
 const fadeOut = keyframes`
   from { opacity: 1; }
@@ -40,6 +40,37 @@ const Crosshair = styled.div`
 
   &::before { left: 8px; top: 0; width: 2px; height: 18px; }
   &::after { top: 8px; left: 0; width: 18px; height: 2px; }
+`;
+
+/** Looking through a scope: a round view in black, with thin crosshairs across it. */
+const Scope = styled.div`
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    transparent ${SCOPE_RADIUS},
+    #000 calc(${SCOPE_RADIUS} + 2px)
+  );
+
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    background: #000;
+  }
+
+  &::before {
+    left: calc(50% - 1px);
+    top: calc(50% - ${SCOPE_RADIUS});
+    width: 2px;
+    height: calc(2 * ${SCOPE_RADIUS});
+  }
+
+  &::after {
+    top: calc(50% - 1px);
+    left: calc(50% - ${SCOPE_RADIUS});
+    width: calc(2 * ${SCOPE_RADIUS});
+    height: 2px;
+  }
 `;
 
 const HitMarker = styled.div<{ $kind: HitMarkerKind }>`
@@ -227,6 +258,7 @@ const Notice = styled.div`
 export default {
   Layer,
   Crosshair,
+  Scope,
   HitMarker,
   DamageFlash,
   Corner,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aimDirection, canFire, cycleWeapon, falloffFactor, pelletDamage, pelletDirections,
-  resolveShot, weaponAt, weaponIndex,
+  resolveShot, shotSpread, weaponAt, weaponIndex,
 } from '../../src/game/weapons/service';
 import { WEAPONS } from '../../src/game/weapons/constants';
 import { ShotTarget } from '../../src/game/weapons/types';
@@ -93,7 +93,8 @@ describe('resolveShot', () => {
   });
 
   it('adds up shotgun pellets per player', () => {
-    const dirs = pelletDirections(0, -0.05, WEAPONS.shotgun, () => 0.5);
+    const { pellets, spread } = WEAPONS.shotgun;
+    const dirs = pelletDirections(0, -0.05, pellets, spread, () => 0.5);
     const result = resolveShot(EYE, dirs, [], [targetAt('a', [0, 0, -4])], WEAPONS.shotgun);
     expect(dirs).toHaveLength(WEAPONS.shotgun.pellets);
     expect(result.damageByUser.get('a')).toBe(WEAPONS.shotgun.damage * WEAPONS.shotgun.pellets);
@@ -126,10 +127,17 @@ describe('weapon selection', () => {
     expect(canFire(0, WEAPONS.blaster.cooldownMs, WEAPONS.blaster)).toBe(true);
   });
 
-  it('cycles both ways and maps indexes', () => {
+  it('cycles both ways through the four weapons and maps indexes', () => {
     expect(cycleWeapon('blaster', 1)).toBe('shotgun');
-    expect(cycleWeapon('blaster', -1)).toBe('shotgun');
-    expect(weaponAt(weaponIndex('shotgun'))).toBe('shotgun');
+    expect(cycleWeapon('blaster', -1)).toBe('sniper');
+    expect(cycleWeapon('sniper', 1)).toBe('blaster');
+    expect(weaponAt(weaponIndex('smg'))).toBe('smg');
     expect(weaponAt(42)).toBe('blaster');
+  });
+
+  it('tightens the sniper through its scope, and only the sniper', () => {
+    expect(shotSpread(WEAPONS.sniper, false)).toBe(WEAPONS.sniper.spread);
+    expect(shotSpread(WEAPONS.sniper, true)).toBe(0);
+    expect(shotSpread(WEAPONS.shotgun, true)).toBe(WEAPONS.shotgun.spread);
   });
 });

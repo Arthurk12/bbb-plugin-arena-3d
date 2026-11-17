@@ -4,6 +4,7 @@ import { RESPAWN_DELAY_MS, SPAWN_PROTECTION_MS } from '../../src/game/combat/con
 import { ARENA_LEVEL } from '../../src/game/level/layout';
 import { LevelBlock, LevelDefinition } from '../../src/game/level/types';
 import { PLAYER } from '../../src/game/player/constants';
+import { WEAPON_IDS } from '../../src/game/weapons/constants';
 import {
   CLIENT_MESSAGE, CLOSE_CODES, ENV_KIND, ENVIRONMENT_WEAPON, ENVIRONMENT_ZONE, SERVER_MESSAGE,
   SNAPSHOT_FLAGS,
@@ -82,6 +83,7 @@ const shotWith = (fields: Partial<ShotMessage> & Pick<ShotMessage, 'id' | 'vt'>)
   x: BODY_PITCH,
   w: 0,
   seed: 1,
+  ads: false,
   ...fields,
 });
 
@@ -149,6 +151,21 @@ describe('createRoom', () => {
     ]);
     const scores = messagesOf(s.u1.sent, 'scores');
     expect(scores[scores.length - 1].scores).toEqual({ u1: [1, 0], u2: [0, 1] });
+  });
+
+  it('kills with one sniper headshot through the scope', () => {
+    const s = start();
+    const sniper = WEAPON_IDS.indexOf('sniper');
+    s.room.handle('u1', shotWith({
+      id: 1, vt: s.time.now - 100, x: 0, w: sniper, ads: true,
+    }));
+
+    expect(messagesOf(s.u2.sent, 'hit')[0]).toMatchObject({ zone: 0, dmg: 100, hp: 0 });
+    expect(messagesOf(s.u1.sent, 'kill')).toEqual([
+      {
+        type: 'kill', by: 'u1', to: 'u2', w: sniper, zone: 0,
+      },
+    ]);
   });
 
   it('respawns the victim once the respawn delay has passed', () => {
