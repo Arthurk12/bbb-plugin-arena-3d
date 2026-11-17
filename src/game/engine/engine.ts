@@ -36,7 +36,7 @@ import { pickSpawn } from '../level/service';
 import { PLAYER } from '../player/constants';
 import { stepPlayer } from '../player/service';
 import { CollisionWorld, MoveIntent, PlayerBody } from '../player/types';
-import { createRemoteAvatar } from '../remote/avatar';
+import { createAvatarCrowd } from '../remote/crowd';
 import { writeHitboxes } from '../remote/service';
 import { RemoteAvatar } from '../remote/types';
 import { WEAPONS } from '../weapons/constants';
@@ -151,6 +151,7 @@ export const createArenaEngine = ({
   const audio = createArenaAudio();
   const input = createInputController(canvas);
   const snapshots = createSnapshotStore();
+  const crowd = createAvatarCrowd(scene);
 
   const body: PlayerBody = { position: [0, 0, 0], velocity: [0, 0, 0], grounded: false };
   let yaw = 0;
@@ -418,7 +419,6 @@ export const createArenaEngine = ({
     const keep = new Set(ids.map(({ userId }) => userId));
     [...remotes.entries()].forEach(([userId, remote]) => {
       if (keep.has(userId)) return;
-      scene.remove(remote.avatar.group);
       remote.avatar.dispose();
       remotes.delete(userId);
     });
@@ -427,8 +427,7 @@ export const createArenaEngine = ({
     ids.forEach(({ userId, latest }) => {
       let remote = remotes.get(userId);
       if (!remote) {
-        const avatar = createRemoteAvatar(userId);
-        scene.add(avatar.group);
+        const avatar = crowd.add(userId);
         remote = {
           avatar,
           pose: { p: [0, 0, 0], y: 0, x: 0 },
@@ -446,6 +445,7 @@ export const createArenaEngine = ({
       const { alive } = latest;
       remote.avatar.update({
         pose, speed: remote.speed, alive, dt, now: performance.now(),
+        viewerDistance: distanceXZ(pose.p, body.position),
       });
       const user = context.users[userId];
       remote.avatar.setName(user?.name ?? context.fallbackName, user?.color ?? '#ffffff');
@@ -639,6 +639,7 @@ export const createArenaEngine = ({
       effects.dispose();
       remotes.forEach((remote) => remote.avatar.dispose());
       remotes.clear();
+      crowd.dispose();
       viewModel.dispose();
       disposeScene(scene);
       renderer.dispose();
