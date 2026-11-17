@@ -1,5 +1,4 @@
-import { Vec3 } from '../commons/types';
-import { Pose } from '../net/types';
+import { Pose, Vec3 } from '../commons/types';
 import { RELAY_TIMING, SNAPSHOT_FLAGS } from '../protocol/constants';
 import { SnapshotMessage } from '../protocol/types';
 import { SNAP_DISTANCE, SNAPSHOT_BUFFER_LENGTH } from './constants';

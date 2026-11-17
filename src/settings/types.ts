@@ -7,6 +7,8 @@ export interface ArenaSettings {
   maxPlayers: number;
   /** Fraction of the screen resolution the game renders at (pixelated upscale). */
   renderScale: number;
+  /** Relay WebSocket URL; empty means wss://<the BBB server serving the plugin>/arena-relay. */
+  relayUrl: string;
 }
 
 export interface SettingsContextValue {

@@ -13,16 +13,6 @@
       "replaceOrDeletePermission": [
         "moderator"
       ]
-    },
-    {
-      "name": "players",
-      "pushPermission": [
-        "all"
-      ],
-      "replaceOrDeletePermission": [
-        "creator",
-        "moderator"
-      ]
     }
   ],
   "settingsSchema": [
@@ -46,6 +36,13 @@
       "required": false,
       "defaultValue": 0.75,
       "type": "float"
+    },
+    {
+      "name": "relayUrl",
+      "label": "Arena relay WebSocket URL (empty: wss://<BBB server>/arena-relay)",
+      "required": false,
+      "defaultValue": "",
+      "type": "string"
     }
   ]
 }

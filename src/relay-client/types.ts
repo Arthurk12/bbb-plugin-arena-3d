@@ -1,4 +1,4 @@
-import { Pose } from '../net/types';
+import { Pose } from '../commons/types';
 import { ClientMessage, ServerMessage, SnapshotMessage } from '../protocol/types';
 
 /** The relay's clock as seen from here. */

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createSnapshotStore } from '../../src/relay-client/snapshots';
 import { SNAPSHOT_FLAGS } from '../../src/protocol/constants';
 import { SnapshotEntry, SnapshotMessage } from '../../src/protocol/types';
-import { Pose } from '../../src/net/types';
+import { Pose } from '../../src/commons/types';
 
 const ALIVE_IN_ARENA = SNAPSHOT_FLAGS.ALIVE | SNAPSHOT_FLAGS.IN_ARENA;
 

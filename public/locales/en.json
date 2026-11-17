@@ -13,6 +13,8 @@
   "arena.webglError": "Your browser can't draw 3D graphics (WebGL is off or unsupported), so the arena can't run here.",
   "feed.suicide": "{victim} fragged themselves",
   "hud.clickToPlay": "Click to play",
+  "hud.connecting": "Connecting to the arena server…",
+  "hud.connectionFailed": "Can't reach the arena server. Trying again…",
   "hud.controls.aim": "Mouse: aim · Click: shoot",
   "hud.controls.move": "W A S D or arrows: move · Space: jump · Shift: walk",
   "hud.controls.other": "Tab: scores · M: sound on/off · Esc: release the mouse",

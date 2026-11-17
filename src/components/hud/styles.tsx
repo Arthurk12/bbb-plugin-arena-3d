@@ -194,6 +194,21 @@ const ScoreboardSlot = styled.div`
   transform: translate(-50%, -50%);
 `;
 
+/** Connection notice at the top center: over the game, never blocking it. */
+const Notice = styled.div`
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: ${HUD_COLORS.overlay};
+  color: ${HUD_COLORS.text};
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+`;
+
 export default {
   Layer,
   Crosshair,
@@ -212,4 +227,5 @@ export default {
   PlayButton,
   Controls,
   ScoreboardSlot,
+  Notice,
 };
