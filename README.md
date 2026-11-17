@@ -1,6 +1,6 @@
 # bbb-plugin-arena-3d
 
-BigBlueButton plugin (BBB 4.0, SDK `0.1.26`): a retro first-person arena shooter, in the spirit
+BigBlueButton plugin (BBB 4.0, plugin SDK `^1.0.0-beta.1`): a retro first-person arena shooter, in the spirit
 of the 90s Build-engine games, played by everyone in the session. A moderator starts a match;
 the arena replaces the presentation in everyone's media area, and each participant sees and
 shoots the others in real time.
