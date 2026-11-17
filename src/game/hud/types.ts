@@ -13,6 +13,10 @@ export interface FeedItem {
   id: number;
   killer: string;
   victim: string;
+  /** Weapon of the frag (not shown for a suicide). */
+  weapon: WeaponId;
+  /** The killing hit was to the head. */
+  headshot: boolean;
   at: number;
 }
 
@@ -22,7 +26,8 @@ export interface ScoreRow {
   deaths: number;
 }
 
-export type HitMarker = 'hit' | 'head';
+/** How a hit we landed is shown: the head stands out, arms and legs are a lighter hit. */
+export type HitMarker = 'head' | 'body' | 'limb';
 
 /** What the HUD shows; written by the game, read by React. Changes only on events. */
 export interface HudState {

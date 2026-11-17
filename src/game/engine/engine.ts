@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Pose, Vec3 } from '../../commons/types';
-import { clamp } from '../../commons/utils';
+import { clamp, wrapAngle } from '../../commons/utils';
 import { DATA_TEST } from '../../commons/constants';
 import { seededRandom } from '../../commons/random';
 import { MAX_HEALTH } from '../../net/constants';
@@ -18,11 +18,10 @@ import { createArenaAudio } from '../effects/audio';
 import { HEARING_DISTANCE, MUZZLE_OFFSET, REMOTE_TRACER_RANGE } from '../effects/constants';
 import { createEffects } from '../effects/effects';
 import { SoundId } from '../effects/types';
+import { distanceXZ, pointAlong, rayBoxes } from '../geometry/service';
+import { createHitbox, writeHitbox, zoneAt } from '../hitbox/service';
 import {
-  createAabb, distanceXZ, pointAlong, rayBoxes,
-} from '../geometry/service';
-import {
-  appendFeed, pruneFeed, sameRows, scoreboardRows,
+  appendFeed, hitMarkerFor, pruneFeed, sameRows, scoreboardRows,
 } from '../hud/service';
 import {
   ConnectionState, FeedItem, HitMarker, Score, ScoreRow,
@@ -37,7 +36,6 @@ import { PLAYER } from '../player/constants';
 import { stepPlayer } from '../player/service';
 import { CollisionWorld, MoveIntent, PlayerBody } from '../player/types';
 import { createAvatarCrowd } from '../remote/crowd';
-import { writeHitboxes } from '../remote/service';
 import { RemoteAvatar } from '../remote/types';
 import { WEAPONS } from '../weapons/constants';
 import {
@@ -46,8 +44,8 @@ import {
 import { ShotTarget, WeaponId } from '../weapons/types';
 import { createViewModel } from '../weapons/view-model';
 import {
-  CAMERA, ENV_DAMAGE_BATCH, MAX_FRAME_DT, MAX_TRACERS_PER_SHOT, PICKUP_REACH_HEIGHT,
-  POSE_SEND, SPEED_SMOOTHING,
+  CAMERA, ENV_DAMAGE_BATCH, LIMB_HIT_VOLUME, MAX_FRAME_DT, MAX_TRACERS_PER_SHOT,
+  PICKUP_REACH_HEIGHT, POSE_SEND, SPEED_SMOOTHING,
 } from './constants';
 import { ArenaEngine, EngineOptions } from './types';
 
@@ -87,11 +85,6 @@ const disposeScene = (scene: THREE.Scene) => {
       material.dispose();
     });
   });
-};
-
-const wrapAngle = (angle: number): number => {
-  const twoPi = Math.PI * 2;
-  return angle - twoPi * Math.floor((angle + Math.PI) / twoPi);
 };
 
 const round2 = (n: number): number => Math.round(n * POSE_SEND.precision) / POSE_SEND.precision;
@@ -178,7 +171,7 @@ export const createArenaEngine = ({
   let scoresChanged = true;
   let feed: FeedItem[] = [];
   let feedId = 0;
-  let hitMarker: HitMarker = 'hit';
+  let hitMarker: HitMarker = 'body';
   let hitMarkerSeq = 0;
   let damageSeq = 0;
   let scoreboard: ScoreRow[] = [];
@@ -207,10 +200,15 @@ export const createArenaEngine = ({
     placeBody(point.position, point.yaw);
   };
 
-  const pushFeed = (killer: string, victim: string, now: number) => {
+  const pushFeed = (killer: string, victim: string, weapon: number, zone: number, now: number) => {
     feedId += 1;
     feed = appendFeed(feed, {
-      id: feedId, killer, victim, at: now,
+      id: feedId,
+      killer,
+      victim,
+      weapon: weaponAt(weapon),
+      headshot: zoneAt(zone) === 'head',
+      at: now,
     });
   };
 
@@ -236,8 +234,8 @@ export const createArenaEngine = ({
     lastPoseSent = null;
   };
 
-  const handleKill = (by: string, to: string, now: number) => {
-    pushFeed(by, to, now);
+  const handleKill = (by: string, to: string, weapon: number, zone: number, now: number) => {
+    pushFeed(by, to, weapon, zone, now);
     if (to === myId) {
       combat = {
         ...combat,
@@ -283,16 +281,17 @@ export const createArenaEngine = ({
           damageSeq += 1;
           if (message.hp > 0) play('pain');
         } else if (message.by === myId) {
-          hitMarker = message.head ? 'head' : 'hit';
+          hitMarker = hitMarkerFor(zoneAt(message.zone));
           hitMarkerSeq += 1;
-          play(message.head ? 'headshot' : 'hit');
+          if (hitMarker === 'head') play('headshot');
+          else play('hit', hitMarker === 'limb' ? LIMB_HIT_VOLUME : 1);
         }
         return;
       case SERVER_MESSAGE.HEALTH:
         if (message.id === myId) combat = { ...combat, health: message.hp };
         return;
       case SERVER_MESSAGE.KILL:
-        handleKill(message.by, message.to, now);
+        handleKill(message.by, message.to, message.w, message.zone, now);
         return;
       case SERVER_MESSAGE.SPAWN:
         if (message.id !== myId) return;
@@ -433,7 +432,7 @@ export const createArenaEngine = ({
           pose: { p: [0, 0, 0], y: 0, x: 0 },
           previous: null,
           speed: 0,
-          target: { userId, body: createAabb(), head: createAabb() },
+          target: { userId, hitbox: createHitbox() },
         };
         remotes.set(userId, remote);
       }
@@ -450,7 +449,7 @@ export const createArenaEngine = ({
       const user = context.users[userId];
       remote.avatar.setName(user?.name ?? context.fallbackName, user?.color ?? '#ffffff');
       if (!alive) return;
-      writeHitboxes(pose, remote.target.body, remote.target.head);
+      writeHitbox(pose, remote.target.hitbox);
       targets.push(remote.target);
     });
     return targets;

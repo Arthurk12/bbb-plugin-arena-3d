@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aimDirection, canFire, cycleWeapon, pelletDirections, resolveShot, weaponAt, weaponIndex,
+  aimDirection, canFire, cycleWeapon, falloffFactor, pelletDamage, pelletDirections,
+  resolveShot, weaponAt, weaponIndex,
 } from '../../src/game/weapons/service';
 import { WEAPONS } from '../../src/game/weapons/constants';
 import { ShotTarget } from '../../src/game/weapons/types';
-import { createAabb, rayAabb } from '../../src/game/geometry/service';
-import { writeHitboxes } from '../../src/game/remote/service';
+import { rayAabb } from '../../src/game/geometry/service';
+import { createHitbox, writeHitbox } from '../../src/game/hitbox/service';
 import { block } from '../../src/game/level/service';
 import { Vec3 } from '../../src/commons/types';
 
-const targetAt = (userId: string, p: Vec3): ShotTarget => {
-  const target = { userId, body: createAabb(), head: createAabb() };
-  writeHitboxes({ p, y: 0, x: 0 }, target.body, target.head);
-  return target;
-};
+const targetAt = (userId: string, p: Vec3): ShotTarget => ({
+  userId,
+  hitbox: writeHitbox({ p, y: 0, x: 0 }, createHitbox()),
+});
 
 const EYE: Vec3 = [0, 1.55, 0];
 
@@ -35,19 +35,32 @@ describe('rayAabb', () => {
 });
 
 describe('resolveShot', () => {
-  it('hits the body of a player in front', () => {
-    const result = resolveShot(EYE, [aimDirection(0, -0.1)], [], [targetAt('a', [0, 0, -10])], WEAPONS.blaster);
+  it('hits the torso of a player in front with the base damage', () => {
+    const result = resolveShot(EYE, [aimDirection(0, -0.05)], [], [targetAt('a', [0, 0, -10])], WEAPONS.blaster);
     expect(result.damageByUser.get('a')).toBe(WEAPONS.blaster.damage);
-    expect(result.headshot).toBe(false);
+    expect(result.zoneByUser.get('a')).toBe('torso');
   });
 
-  it('doubles the damage of a headshot', () => {
+  it('multiplies the damage of a headshot', () => {
     const result = resolveShot(EYE, [[0, 0, -1]], [], [targetAt('a', [0, 0, -10])], WEAPONS.blaster);
-    expect(result.headshot).toBe(true);
-    expect(result.damageByUser.get('a')).toBe(WEAPONS.blaster.damage * WEAPONS.blaster.headMultiplier);
+    expect(result.zoneByUser.get('a')).toBe('head');
+    expect(result.damageByUser.get('a')).toBe(
+      WEAPONS.blaster.damage * WEAPONS.blaster.zoneMultipliers.head,
+    );
   });
 
-  it('tells which players were hit in the head', () => {
+  it('does less damage to the legs', () => {
+    const toLegs: Vec3 = [0, 0.4 - EYE[1], -10];
+    const length = Math.hypot(...toLegs);
+    const dir: Vec3 = [toLegs[0] / length, toLegs[1] / length, toLegs[2] / length];
+    const result = resolveShot(EYE, [dir], [], [targetAt('a', [0, 0, -10])], WEAPONS.blaster);
+    expect(result.zoneByUser.get('a')).toBe('legs');
+    expect(result.damageByUser.get('a')).toBeCloseTo(
+      WEAPONS.blaster.damage * WEAPONS.blaster.zoneMultipliers.legs,
+    );
+  });
+
+  it('tells which zone each player was hit in', () => {
     const toBody: Vec3 = [3, 1.0 - EYE[1], -10];
     const length = Math.hypot(...toBody);
     const result = resolveShot(
@@ -57,9 +70,8 @@ describe('resolveShot', () => {
       [targetAt('a', [0, 0, -10]), targetAt('b', [3, 0, -10])],
       WEAPONS.shotgun,
     );
-    expect(result.headshot).toBe(true);
-    expect([...result.headshotUsers]).toEqual(['a']);
-    expect(result.damageByUser.has('b')).toBe(true);
+    expect(result.zoneByUser.get('a')).toBe('head');
+    expect(result.zoneByUser.get('b')).toBe('torso');
   });
 
   it('is stopped by a wall in between', () => {
@@ -85,11 +97,26 @@ describe('resolveShot', () => {
     const result = resolveShot(EYE, dirs, [], [targetAt('a', [0, 0, -4])], WEAPONS.shotgun);
     expect(dirs).toHaveLength(WEAPONS.shotgun.pellets);
     expect(result.damageByUser.get('a')).toBe(WEAPONS.shotgun.damage * WEAPONS.shotgun.pellets);
+    expect(result.zoneByUser.get('a')).toBe('torso');
   });
 
   it('does not reach past the weapon range', () => {
     const result = resolveShot(EYE, [[0, 0, -1]], [], [targetAt('a', [0, 0, -100])], WEAPONS.shotgun);
     expect(result.damageByUser.size).toBe(0);
+  });
+});
+
+describe('damage', () => {
+  it('fades with distance between the falloff bounds', () => {
+    expect(falloffFactor(WEAPONS.shotgun, 5)).toBe(1);
+    expect(falloffFactor(WEAPONS.shotgun, 19)).toBeCloseTo(0.65);
+    expect(falloffFactor(WEAPONS.shotgun, 30)).toBeCloseTo(0.3);
+    expect(falloffFactor(WEAPONS.shotgun, 100)).toBeCloseTo(0.3);
+  });
+
+  it('combines the zone and the distance', () => {
+    expect(pelletDamage(WEAPONS.blaster, 'head', 10)).toBe(44);
+    expect(pelletDamage(WEAPONS.blaster, 'arms', 100)).toBeCloseTo(22 * 0.75 * 0.7);
   });
 });
 

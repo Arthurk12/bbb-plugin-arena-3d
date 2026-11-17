@@ -4,7 +4,7 @@ import { useStore } from '../../store/hooks';
 import { intlMessages as arenaMessages } from '../arena/messages';
 import { intlMessages as mainMessages } from '../main/messages';
 import Scoreboard from '../scoreboard/component';
-import { HUD_COLORS, LOW_HEALTH } from './constants';
+import { HEADSHOT_ICON, HUD_COLORS, LOW_HEALTH } from './constants';
 import { intlMessages } from './messages';
 import { nameOf } from './service';
 import Styled from './styles';
@@ -54,7 +54,7 @@ function Hud({ hud, session, onPlay }: HudProps) {
       ) : null}
       {state.alive && state.locked ? <Styled.Crosshair /> : null}
       {state.hitMarkerSeq > 0 ? (
-        <Styled.HitMarker key={state.hitMarkerSeq} $head={state.hitMarker === 'head'} />
+        <Styled.HitMarker key={state.hitMarkerSeq} $kind={state.hitMarker} />
       ) : null}
       {state.damageSeq > 0 ? <Styled.DamageFlash key={state.damageSeq} /> : null}
 
@@ -81,7 +81,17 @@ function Hud({ hud, session, onPlay }: HudProps) {
                 <Styled.PlayerName $color={color(item.killer)}>
                   {name(item.killer)}
                 </Styled.PlayerName>
-                {' ✖ '}
+                <Styled.FeedWeapon>
+                  {intl.formatMessage(intlMessages[item.weapon])}
+                  {item.headshot ? (
+                    <Styled.FeedHeadshot
+                      role="img"
+                      aria-label={intl.formatMessage(intlMessages.feedHeadshot)}
+                    >
+                      {HEADSHOT_ICON}
+                    </Styled.FeedHeadshot>
+                  ) : null}
+                </Styled.FeedWeapon>
                 <Styled.PlayerName $color={color(item.victim)}>
                   {name(item.victim)}
                 </Styled.PlayerName>

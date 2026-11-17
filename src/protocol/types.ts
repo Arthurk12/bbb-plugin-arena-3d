@@ -112,7 +112,8 @@ export interface HitEvent {
   by: string;
   to: string;
   dmg: number;
-  head: boolean;
+  /** Body zone hit, as its index in HIT_ZONES (ENVIRONMENT_ZONE for the level). */
+  zone: number;
   /** Target's health after the hit. */
   hp: number;
 }
@@ -130,6 +131,8 @@ export interface KillEvent {
   to: string;
   /** Killer's weapon index, or ENVIRONMENT_WEAPON. */
   w: number;
+  /** Zone of the killing hit, as in `hit`. */
+  zone: number;
 }
 
 export interface SpawnEvent {

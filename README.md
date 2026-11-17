@@ -27,6 +27,17 @@ downloads no assets and uses no third-party game content.
   two high ledges reached by jump pads, cover, and a slime pit that hurts.
 - Two hitscan weapons: the **Blaster** (precise, double damage on headshots) and the
   **Shotgun** (nine pellets, short range).
+- Where a shot lands matters: the body has four zones (head, torso, arms, legs) that follow the
+  avatar as it is drawn, turning with the player and lifting the arms with the aim. Each weapon
+  multiplies its damage by zone, and loses damage with distance:
+
+  | Weapon | Damage (torso) | Head | Arms / legs | Full damage up to | Weakest (at) |
+  |---|---|---|---|---|---|
+  | Blaster | 22 | ×2 | ×0.75 | 40 m | 70% (100 m) |
+  | Shotgun | 9 per pellet, 9 pellets | ×1.25 | ×0.8 | 8 m | 30% (30 m) |
+
+- The hit marker tells what you hit: red and larger for the head, grey and smaller for arms and
+  legs. The kill feed shows the weapon of each frag and marks headshots with ◎.
 - 100 health; health kits on the map (local to each player: each one sees and takes their own).
 - Dying shows who fragged you and respawns you after 3 seconds at the spawn point farthest from
   everyone, with 1.5 s of protection.
@@ -67,8 +78,8 @@ WebSocket service next to BBB (see [Relay](#relay)).
   the relay's clock and blended between snapshots.
 - **Hits:** the relay decides. A shot carries the time of what the shooter saw; the relay rewinds
   the targets to that moment (at most 200 ms back, and only if that time agrees with the
-  shooter's measured latency), regenerates the pellets from the shot's seed, and checks walls,
-  cooldown and who was alive. You can still be hit just after ducking behind a wall, but by at
+  shooter's measured latency, aim included), regenerates the pellets from the shot's seed, and
+  checks walls, cooldown, who was alive and which body zone each pellet met. You can still be hit just after ducking behind a wall, but by at
   most 0.2 s of movement.
 - **Trust:** identity comes from BBB's session check in nginx, never from a message. Damage,
   kills and scores cannot be forged. Positions are still reported by each client and only

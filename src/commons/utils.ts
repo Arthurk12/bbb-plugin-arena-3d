@@ -27,3 +27,9 @@ export const hashString = (value: string): number => {
 export const clamp = (value: number, min: number, max: number): number => (
   Math.min(max, Math.max(min, value))
 );
+
+/** The same angle in [-π, π). */
+export const wrapAngle = (angle: number): number => {
+  const twoPi = Math.PI * 2;
+  return angle - twoPi * Math.floor((angle + Math.PI) / twoPi);
+};

@@ -1,5 +1,6 @@
 import styled, { css, keyframes } from 'styled-components';
-import { HUD_COLORS, HUD_FONT } from './constants';
+import { HitMarker as HitMarkerKind } from '../../game/hud/types';
+import { HIT_MARKER, HUD_COLORS, HUD_FONT } from './constants';
 
 const fadeOut = keyframes`
   from { opacity: 1; }
@@ -41,12 +42,12 @@ const Crosshair = styled.div`
   &::after { top: 8px; left: 0; width: 18px; height: 2px; }
 `;
 
-const HitMarker = styled.div<{ $head: boolean }>`
+const HitMarker = styled.div<{ $kind: HitMarkerKind }>`
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 28px;
-  height: 28px;
+  width: ${({ $kind }) => HIT_MARKER[$kind].size}px;
+  height: ${({ $kind }) => HIT_MARKER[$kind].size}px;
   transform: translate(-50%, -50%) rotate(45deg);
   animation: ${fadeOut} 250ms ease-out forwards;
   ${noMotion}
@@ -54,11 +55,11 @@ const HitMarker = styled.div<{ $head: boolean }>`
   &::before, &::after {
     content: '';
     position: absolute;
-    background: ${({ $head }) => ($head ? HUD_COLORS.headshot : HUD_COLORS.hit)};
+    background: ${({ $kind }) => HIT_MARKER[$kind].color};
   }
 
-  &::before { left: 13px; top: 0; width: 2px; height: 28px; }
-  &::after { top: 13px; left: 0; width: 28px; height: 2px; }
+  &::before { left: calc(50% - 1px); top: 0; width: 2px; height: 100%; }
+  &::after { top: calc(50% - 1px); left: 0; width: 100%; height: 2px; }
 `;
 
 const DamageFlash = styled.div`
@@ -116,6 +117,20 @@ const Feed = styled.ul`
 
 const PlayerName = styled.span<{ $color: string }>`
   color: ${({ $color }) => $color};
+`;
+
+const FeedWeapon = styled.span`
+  margin: 0 6px;
+  padding: 1px 4px;
+  border: 1px solid ${HUD_COLORS.accent};
+  border-radius: 2px;
+  color: ${HUD_COLORS.accent};
+  font-size: 9px;
+`;
+
+const FeedHeadshot = styled.span`
+  margin-left: 4px;
+  color: ${HUD_COLORS.headshot};
 `;
 
 const Death = styled.div`
@@ -220,6 +235,8 @@ export default {
   Stats,
   Feed,
   PlayerName,
+  FeedWeapon,
+  FeedHeadshot,
   Death,
   Muted,
   Overlay,

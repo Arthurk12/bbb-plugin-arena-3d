@@ -33,13 +33,6 @@ export const AVATAR_DETAIL = {
   gunGrip: 0.12,
 };
 
-export const HITBOX = {
-  bodyHalfWidth: 0.35,
-  bodyHeight: 1.45,
-  headHalfWidth: 0.22,
-  headHeight: 0.42,
-};
-
 /** Pieces drawn in `cloth` take the player's color; the others keep their own. */
 export const AVATAR_COLORS = {
   cloth: 0xffffff,

@@ -1,3 +1,4 @@
+import { wrapAngle } from '../../src/commons/utils';
 import { HISTORY_LENGTH } from './constants';
 import { HistoryEntry, PoseSample } from './types';
 
@@ -17,9 +18,9 @@ export const recordHistory = (
 };
 
 /**
- * Pose of a player at relay time `t`, blended between the two ticks around it. Never blends
- * across a respawn (the body teleported): the earlier tick is used as is. Always returns fresh
- * data, so the caller cannot corrupt the stored history.
+ * Pose of a player at relay time `t` (position and aim), blended between the two ticks around
+ * it. Never blends across a respawn (the body teleported): the earlier tick is used as is.
+ * Always returns fresh data, so the caller cannot corrupt the stored history.
  */
 export const sampleHistory = (history: HistoryEntry[], t: number): PoseSample | null => {
   if (history.length === 0) {
@@ -29,10 +30,10 @@ export const sampleHistory = (history: HistoryEntry[], t: number): PoseSample | 
   const first = history[0];
   const last = history[history.length - 1];
   if (t <= first.t) {
-    return { p: [...first.p], alive: first.alive, life: first.life };
+    return { p: [...first.p], y: first.y, x: first.x, alive: first.alive, life: first.life };
   }
   if (t >= last.t) {
-    return { p: [...last.p], alive: last.alive, life: last.life };
+    return { p: [...last.p], y: last.y, x: last.x, alive: last.alive, life: last.life };
   }
 
   let i = 0;
@@ -43,7 +44,7 @@ export const sampleHistory = (history: HistoryEntry[], t: number): PoseSample | 
   const b = history[i + 1];
 
   if (a.life !== b.life) {
-    return { p: [...a.p], alive: a.alive, life: a.life };
+    return { p: [...a.p], y: a.y, x: a.x, alive: a.alive, life: a.life };
   }
 
   const alpha = (t - a.t) / (b.t - a.t);
@@ -53,6 +54,8 @@ export const sampleHistory = (history: HistoryEntry[], t: number): PoseSample | 
       a.p[1] + (b.p[1] - a.p[1]) * alpha,
       a.p[2] + (b.p[2] - a.p[2]) * alpha,
     ],
+    y: a.y + wrapAngle(b.y - a.y) * alpha,
+    x: a.x + (b.x - a.x) * alpha,
     alive: a.alive,
     life: a.life,
   };

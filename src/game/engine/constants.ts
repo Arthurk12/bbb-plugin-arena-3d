@@ -31,3 +31,6 @@ export const POSE_SEND = {
   /** An unchanged pose is still sent this often, so the relay knows we are here. */
   keepaliveMs: 1000,
 };
+
+/** Hits we land on arms and legs sound softer than on the body. */
+export const LIMB_HIT_VOLUME = 0.6;

@@ -1,4 +1,5 @@
 import { Pose, Vec3 } from '../commons/types';
+import { wrapAngle } from '../commons/utils';
 import { RELAY_TIMING, SNAPSHOT_FLAGS } from '../protocol/constants';
 import { SnapshotMessage } from '../protocol/types';
 import { SNAP_DISTANCE, SNAPSHOT_BUFFER_LENGTH } from './constants';
@@ -10,11 +11,6 @@ interface Track {
   buffer: TimedPose[];
   latest: RemoteState;
 }
-
-const wrapAngle = (angle: number): number => {
-  const twoPi = Math.PI * 2;
-  return angle - twoPi * Math.floor((angle + Math.PI) / twoPi);
-};
 
 const copyPose = (from: Pose, out: Pose): Pose => {
   out.p[0] = from.p[0];

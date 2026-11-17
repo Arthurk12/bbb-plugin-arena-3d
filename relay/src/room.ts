@@ -2,11 +2,12 @@ import { Vec3 } from '../../src/commons/types';
 import {
   canHeal, createCombatState, heal, respawn, respawnDue, takeDamage,
 } from '../../src/game/combat/service';
+import { zoneIndex } from '../../src/game/hitbox/service';
 import { ARENA_LEVEL } from '../../src/game/level/layout';
 import { pickSpawn } from '../../src/game/level/service';
 import {
-  CLIENT_MESSAGE, CLOSE_CODES, ENV_KIND, ENVIRONMENT_WEAPON, RELAY_LIMITS, RELAY_TIMING,
-  SERVER_MESSAGE, SNAPSHOT_FLAGS,
+  CLIENT_MESSAGE, CLOSE_CODES, ENV_KIND, ENVIRONMENT_WEAPON, ENVIRONMENT_ZONE, RELAY_LIMITS,
+  RELAY_TIMING, SERVER_MESSAGE, SNAPSHOT_FLAGS,
 } from '../../src/protocol/constants';
 import {
   ClientMessage, EnvMessage, PlayerInfo, PoseMessage, ScoreLine, Scores, ServerMessage,
@@ -83,9 +84,11 @@ export const createRoom = (key: string, options: RoomOptions): Room => {
     return pickSpawn(level.spawns, others, random);
   };
 
-  const onDeath = (victim: PlayerState, killerId: string, weapon: number) => {
+  const onDeath = (victim: PlayerState, killerId: string, weapon: number, zone: number) => {
     victim.dirty = true;
-    broadcast({ type: SERVER_MESSAGE.KILL, by: killerId, to: victim.userId, w: weapon });
+    broadcast({
+      type: SERVER_MESSAGE.KILL, by: killerId, to: victim.userId, w: weapon, zone,
+    });
 
     const [victimKills, victimDeaths] = scores.get(victim.userId) ?? [0, 0];
     scores.set(victim.userId, [victimKills, victimDeaths + 1]);
@@ -133,7 +136,7 @@ export const createRoom = (key: string, options: RoomOptions): Room => {
 
       if (!spectator) {
         recordHistory(created.history, {
-          t: now, p: [...created.p] as Vec3, alive: true, life: 1,
+          t: now, p: [...created.p] as Vec3, y: created.y, x: created.x, alive: true, life: 1,
         });
       }
       if (!scores.has(client.userId)) {
@@ -232,18 +235,20 @@ export const createRoom = (key: string, options: RoomOptions): Room => {
       }
       const outcome = takeDamage(target.combat, damage, userId, targetId, now);
       target.combat = outcome.state;
+      const zone = result.zoneByUser.get(targetId);
+      const zoneId = zone ? zoneIndex(zone) : ENVIRONMENT_ZONE;
       if (outcome.taken > 0) {
         broadcast({
           type: SERVER_MESSAGE.HIT,
           by: userId,
           to: targetId,
           dmg: outcome.taken,
-          head: result.headshotUsers.has(targetId),
+          zone: zoneId,
           hp: outcome.state.health,
         });
       }
       if (outcome.died) {
-        onDeath(target, userId, message.w);
+        onDeath(target, userId, message.w, zoneId);
       }
     });
   };
@@ -263,12 +268,12 @@ export const createRoom = (key: string, options: RoomOptions): Room => {
           by: userId,
           to: userId,
           dmg: outcome.taken,
-          head: false,
+          zone: ENVIRONMENT_ZONE,
           hp: outcome.state.health,
         });
       }
       if (outcome.died) {
-        onDeath(player, userId, ENVIRONMENT_WEAPON);
+        onDeath(player, userId, ENVIRONMENT_WEAPON, ENVIRONMENT_ZONE);
       }
     } else if (canHeal(player.combat)) {
       player.combat = heal(player.combat, Math.min(message.amount, MAX_HEAL));
@@ -330,6 +335,8 @@ export const createRoom = (key: string, options: RoomOptions): Room => {
       recordHistory(player.history, {
         t: now,
         p: [...player.p] as Vec3,
+        y: player.y,
+        x: player.x,
         alive: player.combat.alive,
         life: player.life,
       });

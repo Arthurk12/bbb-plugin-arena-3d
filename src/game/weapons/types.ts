@@ -1,8 +1,15 @@
 import { Vec3 } from '../../commons/types';
-import { Aabb } from '../geometry/types';
+import { Hitbox, HitZone } from '../hitbox/types';
 import { WEAPON_IDS } from './constants';
 
 export type WeaponId = typeof WEAPON_IDS[number];
+
+/** Damage fades linearly from `start` to `end` meters, down to `minFactor` of itself. */
+export interface Falloff {
+  start: number;
+  end: number;
+  minFactor: number;
+}
 
 export interface WeaponDefinition {
   id: WeaponId;
@@ -11,10 +18,13 @@ export interface WeaponDefinition {
   pellets: number;
   /** Max deviation of each pellet from the aim, radians. */
   spread: number;
-  /** Damage per pellet. */
+  /** Damage per pellet on the torso, before falloff. */
   damage: number;
   range: number; // meters
-  headMultiplier: number;
+  /** Damage multiplier of each body zone. */
+  zoneMultipliers: Record<HitZone, number>;
+  /** Null: the same damage at any distance. */
+  falloff: Falloff | null;
   /** Camera kick per shot, radians. */
   recoil: number;
   tracerColor: number;
@@ -23,16 +33,13 @@ export interface WeaponDefinition {
 /** A remote player as a shot sees them. */
 export interface ShotTarget {
   userId: string;
-  body: Aabb;
-  head: Aabb;
+  hitbox: Hitbox;
 }
 
 export interface ShotResult {
   damageByUser: Map<string, number>;
-  /** Any pellet hit a head (drives the shooter's hit marker and sound). */
-  headshot: boolean;
-  /** Who was hit in the head, so each victim's hit can say whether it was a headshot. */
-  headshotUsers: Set<string>;
+  /** The most damaging zone each player was hit in (head first), for markers and the feed. */
+  zoneByUser: Map<string, HitZone>;
   /** Where each pellet stopped (a wall, a player, or its range). */
   impacts: Vec3[];
   /** Whether each impact hit a player (for the effect drawn there). */

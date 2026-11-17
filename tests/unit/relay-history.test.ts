@@ -2,8 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { recordHistory, sampleHistory } from '../../relay/src/history';
 import { HistoryEntry } from '../../relay/src/types';
 
-const entry = (t: number, p: [number, number, number], life = 1, alive = true): HistoryEntry => ({
-  t, p, alive, life,
+const entry = (
+  t: number,
+  p: [number, number, number],
+  life = 1,
+  alive = true,
+  y = 0,
+  x = 0,
+): HistoryEntry => ({
+  t, p, y, x, alive, life,
 });
 
 describe('recordHistory', () => {
@@ -23,12 +30,12 @@ describe('sampleHistory', () => {
 
   it('returns the first entry before the history starts', () => {
     const history = [entry(100, [1, 0, 0]), entry(150, [2, 0, 0])];
-    expect(sampleHistory(history, 50)).toEqual({ p: [1, 0, 0], alive: true, life: 1 });
+    expect(sampleHistory(history, 50)).toEqual({ p: [1, 0, 0], y: 0, x: 0, alive: true, life: 1 });
   });
 
   it('returns the last entry after the history ends', () => {
     const history = [entry(100, [1, 0, 0]), entry(150, [2, 0, 0])];
-    expect(sampleHistory(history, 200)).toEqual({ p: [2, 0, 0], alive: true, life: 1 });
+    expect(sampleHistory(history, 200)).toEqual({ p: [2, 0, 0], y: 0, x: 0, alive: true, life: 1 });
   });
 
   it('blends linearly between two entries of the same life', () => {
@@ -41,9 +48,16 @@ describe('sampleHistory', () => {
     expect(sample?.alive).toBe(true);
   });
 
+  it('blends the yaw the short way round and the pitch linearly', () => {
+    const history = [entry(100, [0, 0, 0], 1, true, 3, 0), entry(150, [0, 0, 0], 1, true, -3, 0.4)];
+    const sample = sampleHistory(history, 125);
+    expect(Math.cos(sample!.y)).toBeCloseTo(-1);
+    expect(sample?.x).toBeCloseTo(0.2);
+  });
+
   it('returns the earlier entry without blending across a life change', () => {
     const history = [entry(100, [0, 0, 0], 1), entry(150, [10, 0, 0], 2)];
-    expect(sampleHistory(history, 125)).toEqual({ p: [0, 0, 0], alive: true, life: 1 });
+    expect(sampleHistory(history, 125)).toEqual({ p: [0, 0, 0], y: 0, x: 0, alive: true, life: 1 });
   });
 
   it('returns fresh arrays, not the stored ones', () => {

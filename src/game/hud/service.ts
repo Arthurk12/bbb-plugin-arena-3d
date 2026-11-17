@@ -1,8 +1,9 @@
 import { DEFAULT_WEAPON } from '../weapons/constants';
 import { MAX_HEALTH } from '../../net/constants';
+import { HitZone } from '../hitbox/types';
 import { FEED_SIZE, FEED_TTL_MS } from './constants';
 import {
-  FeedItem, HudState, Score, ScoreRow,
+  FeedItem, HitMarker, HudState, Score, ScoreRow,
 } from './types';
 
 export const initialHudState = (): HudState => ({
@@ -17,7 +18,7 @@ export const initialHudState = (): HudState => ({
   feed: [],
   scoreboard: [],
   showScoreboard: false,
-  hitMarker: 'hit',
+  hitMarker: 'body',
   hitMarkerSeq: 0,
   damageSeq: 0,
   muted: false,
@@ -45,4 +46,11 @@ export const appendFeed = (feed: FeedItem[], item: FeedItem): FeedItem[] => (
 export const pruneFeed = (feed: FeedItem[], now: number): FeedItem[] => {
   const kept = feed.filter((item) => now - item.at < FEED_TTL_MS);
   return kept.length === feed.length ? feed : kept;
+};
+
+/** Marker for a hit we landed in `zone` (null: no zone, shown as a body hit). */
+export const hitMarkerFor = (zone: HitZone | null): HitMarker => {
+  if (zone === 'head') return 'head';
+  if (zone === 'arms' || zone === 'legs') return 'limb';
+  return 'body';
 };

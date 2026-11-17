@@ -1,5 +1,5 @@
 /** Bumped on any incompatible change; the relay refuses other versions. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /** Timing shared by the relay and the client, ms. */
 export const RELAY_TIMING = {
@@ -81,3 +81,6 @@ export const ENV_KIND = {
 
 /** Weapon index sent in a `kill` caused by the level (falls, slime). */
 export const ENVIRONMENT_WEAPON = -1;
+
+/** Zone index sent in a `hit` or `kill` the level caused (falls, slime). */
+export const ENVIRONMENT_ZONE = -1;

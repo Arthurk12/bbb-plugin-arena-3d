@@ -1,7 +1,6 @@
 import { seededRandom } from '../../src/commons/random';
-import { createAabb } from '../../src/game/geometry/service';
+import { createHitbox, writeHitbox } from '../../src/game/hitbox/service';
 import { PLAYER } from '../../src/game/player/constants';
-import { writeHitboxes } from '../../src/game/remote/service';
 import { WEAPON_IDS, WEAPONS } from '../../src/game/weapons/constants';
 import { pelletDirections, resolveShot, weaponAt } from '../../src/game/weapons/service';
 import { ShotTarget } from '../../src/game/weapons/types';
@@ -54,10 +53,8 @@ export const evaluateShot = (shot: ShotMessage, ctx: ShotContext): ShotVerdict =
     if (other.spectator || !other.on || !other.combat.alive) return;
     const sample = sampleHistory(other.history, viewTime);
     if (!sample || !sample.alive || sample.life !== other.life) return;
-    const body = createAabb();
-    const head = createAabb();
-    writeHitboxes({ p: sample.p, y: 0, x: 0 }, body, head);
-    targets.push({ userId: other.userId, body, head });
+    const hitbox = writeHitbox({ p: sample.p, y: sample.y, x: sample.x }, createHitbox());
+    targets.push({ userId: other.userId, hitbox });
   });
 
   const directions = pelletDirections(shot.y, shot.x, weapon, seededRandom(shot.seed));

@@ -25,6 +25,9 @@ export interface RoomClient {
 export interface HistoryEntry {
   t: number;
   p: Vec3;
+  /** Yaw and pitch, radians. */
+  y: number;
+  x: number;
   alive: boolean;
   /** Incremented on every respawn: a hit never crosses a respawn. */
   life: number;
@@ -32,6 +35,8 @@ export interface HistoryEntry {
 
 export interface PoseSample {
   p: Vec3;
+  y: number;
+  x: number;
   alive: boolean;
   life: number;
 }

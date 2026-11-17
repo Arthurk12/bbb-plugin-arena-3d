@@ -5,7 +5,8 @@ import { ARENA_LEVEL } from '../../src/game/level/layout';
 import { LevelBlock, LevelDefinition } from '../../src/game/level/types';
 import { PLAYER } from '../../src/game/player/constants';
 import {
-  CLIENT_MESSAGE, CLOSE_CODES, ENV_KIND, ENVIRONMENT_WEAPON, SERVER_MESSAGE, SNAPSHOT_FLAGS,
+  CLIENT_MESSAGE, CLOSE_CODES, ENV_KIND, ENVIRONMENT_WEAPON, ENVIRONMENT_ZONE, SERVER_MESSAGE,
+  SNAPSHOT_FLAGS,
 } from '../../src/protocol/constants';
 import {
   EnvMessage, PoseMessage, ServerMessage, ShotMessage,
@@ -131,7 +132,7 @@ describe('createRoom', () => {
     s.room.handle('u1', bodyShot(1, s.time.now));
 
     expect(messagesOf(s.u2.sent, 'hit')).toEqual([{
-      type: 'hit', by: 'u1', to: 'u2', dmg: 22, head: false, hp: 78,
+      type: 'hit', by: 'u1', to: 'u2', dmg: 22, zone: 1, hp: 78,
     }]);
     expect(messagesOf(s.u2.sent, 'shot')).toEqual([
       expect.objectContaining({ type: 'shot', by: 'u1', id: 1 }),
@@ -144,7 +145,7 @@ describe('createRoom', () => {
     killU2(s);
 
     expect(messagesOf(s.u1.sent, 'kill')).toEqual([
-      { type: 'kill', by: 'u1', to: 'u2', w: 0 },
+      { type: 'kill', by: 'u1', to: 'u2', w: 0, zone: 1 },
     ]);
     const scores = messagesOf(s.u1.sent, 'scores');
     expect(scores[scores.length - 1].scores).toEqual({ u1: [1, 0], u2: [0, 1] });
@@ -199,7 +200,7 @@ describe('createRoom', () => {
     s.room.handle('u1', shotWith({ id: 1, vt: stood, x: 0 }));
     const hits = messagesOf(s.u2.sent, 'hit');
     expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ by: 'u1', to: 'u2', head: true, dmg: 44 });
+    expect(hits[0]).toMatchObject({ by: 'u1', to: 'u2', zone: 0, dmg: 44 });
 
     // Well past the cooldown, the view time is 100 ms old and u2 has moved away: no hit.
     s.tickFor(450);
@@ -278,12 +279,12 @@ describe('createRoom', () => {
 
     room.handle('u1', envDamage(30));
     expect(messagesOf(u1.sent, 'hit')).toEqual([{
-      type: 'hit', by: 'u1', to: 'u1', dmg: 30, head: false, hp: 70,
+      type: 'hit', by: 'u1', to: 'u1', dmg: 30, zone: ENVIRONMENT_ZONE, hp: 70,
     }]);
 
     room.handle('u1', envDamage(100));
     expect(messagesOf(u1.sent, 'kill')).toEqual([{
-      type: 'kill', by: 'u1', to: 'u1', w: ENVIRONMENT_WEAPON,
+      type: 'kill', by: 'u1', to: 'u1', w: ENVIRONMENT_WEAPON, zone: ENVIRONMENT_ZONE,
     }]);
     const scores = messagesOf(u1.sent, 'scores');
     expect(scores[scores.length - 1].scores).toEqual({ u1: [0, 1] });

@@ -10,7 +10,10 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
     spread: 0.004,
     damage: 22,
     range: 150,
-    headMultiplier: 2,
+    zoneMultipliers: {
+      head: 2, torso: 1, arms: 0.75, legs: 0.75,
+    },
+    falloff: { start: 40, end: 100, minFactor: 0.7 },
     recoil: 0.012,
     tracerColor: 0xffd34d,
   },
@@ -21,7 +24,10 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
     spread: 0.07,
     damage: 9,
     range: 60,
-    headMultiplier: 1.5,
+    zoneMultipliers: {
+      head: 1.25, torso: 1, arms: 0.8, legs: 0.8,
+    },
+    falloff: { start: 8, end: 30, minFactor: 0.3 },
     recoil: 0.05,
     tracerColor: 0xff8a3d,
   },

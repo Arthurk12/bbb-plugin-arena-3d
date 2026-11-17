@@ -76,6 +76,11 @@ export const intlMessages = defineMessages({
     description: 'Kill feed line for a suicide; {victim} is the player',
     defaultMessage: '{victim} fragged themselves',
   },
+  feedHeadshot: {
+    id: 'feed.headshot',
+    description: 'Accessible label of the headshot mark in the kill feed',
+    defaultMessage: 'Headshot',
+  },
   muted: {
     id: 'hud.muted',
     description: 'Shown while game sounds are off',

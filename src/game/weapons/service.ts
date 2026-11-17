@@ -1,6 +1,8 @@
 import { Vec3 } from '../../commons/types';
-import { pointAlong, rayAabb, rayBoxes } from '../geometry/service';
+import { pointAlong, rayBoxes } from '../geometry/service';
 import { Aabb } from '../geometry/types';
+import { rayHitbox, worseZone } from '../hitbox/service';
+import { HitZone, ZoneHit } from '../hitbox/types';
 import { DEFAULT_WEAPON, WEAPON_IDS } from './constants';
 import {
   ShotResult, ShotTarget, WeaponDefinition, WeaponId,
@@ -35,24 +37,35 @@ export const cycleWeapon = (current: WeaponId, step: number): WeaponId => {
   return WEAPON_IDS[(weaponIndex(current) + step + count) % count];
 };
 
+/** Share of the damage left at `distance` meters. */
+export const falloffFactor = (weapon: WeaponDefinition, distance: number): number => {
+  const { falloff } = weapon;
+  if (!falloff || distance <= falloff.start) return 1;
+  if (distance >= falloff.end) return falloff.minFactor;
+  const progress = (distance - falloff.start) / (falloff.end - falloff.start);
+  return 1 - (1 - falloff.minFactor) * progress;
+};
+
+/** Damage of one pellet hitting `zone` from `distance` meters. */
+export const pelletDamage = (weapon: WeaponDefinition, zone: HitZone, distance: number): number => (
+  weapon.damage * weapon.zoneMultipliers[zone] * falloffFactor(weapon, distance)
+);
+
 const nearestTarget = (origin: Vec3, dir: Vec3, targets: ShotTarget[], maxDistance: number) => {
-  let best: { userId: string; distance: number; head: boolean } | null = null;
-  targets.forEach((target) => {
-    const limit = best ? best.distance : maxDistance;
-    const head = rayAabb(origin, dir, target.head, limit);
-    const body = rayAabb(origin, dir, target.body, limit);
-    if (head !== null && (body === null || head <= body)) {
-      best = { userId: target.userId, distance: head, head: true };
-    } else if (body !== null) {
-      best = { userId: target.userId, distance: body, head: false };
+  let best: { userId: string; hit: ZoneHit } | null = null;
+  for (let i = 0; i < targets.length; i += 1) {
+    const limit = best ? best.hit.distance : maxDistance;
+    const hit = rayHitbox(origin, dir, targets[i].hitbox, limit);
+    if (hit && (!best || hit.distance < best.hit.distance)) {
+      best = { userId: targets[i].userId, hit };
     }
-  });
-  return best as { userId: string; distance: number; head: boolean } | null;
+  }
+  return best;
 };
 
 /**
- * Hitscan: each pellet stops at the first wall or player. The shooter decides what it hit,
- * against the players as drawn on its own screen.
+ * Hitscan: each pellet stops at the first wall or player, and hurts by the zone it hit and the
+ * distance it flew. The client runs it to draw at once; the relay runs it again to decide.
  */
 export const resolveShot = (
   origin: Vec3,
@@ -62,22 +75,20 @@ export const resolveShot = (
   weapon: WeaponDefinition,
 ): ShotResult => {
   const result: ShotResult = {
-    damageByUser: new Map(), headshot: false, headshotUsers: new Set(), impacts: [], impactOnPlayer: [],
+    damageByUser: new Map(), zoneByUser: new Map(), impacts: [], impactOnPlayer: [],
   };
   directions.forEach((dir) => {
     const wall = rayBoxes(origin, dir, solids, weapon.range);
     const target = nearestTarget(origin, dir, targets, wall);
     if (target) {
-      const damage = weapon.damage * (target.head ? weapon.headMultiplier : 1);
+      const { userId, hit } = target;
       result.damageByUser.set(
-        target.userId,
-        (result.damageByUser.get(target.userId) ?? 0) + damage,
+        userId,
+        (result.damageByUser.get(userId) ?? 0) + pelletDamage(weapon, hit.zone, hit.distance),
       );
-      if (target.head) {
-        result.headshot = true;
-        result.headshotUsers.add(target.userId);
-      }
-      result.impacts.push(pointAlong(origin, dir, target.distance));
+      const previous = result.zoneByUser.get(userId);
+      result.zoneByUser.set(userId, previous ? worseZone(previous, hit.zone) : hit.zone);
+      result.impacts.push(pointAlong(origin, dir, hit.distance));
       result.impactOnPlayer.push(true);
     } else {
       result.impacts.push(pointAlong(origin, dir, wall));
