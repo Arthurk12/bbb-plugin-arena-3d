@@ -23,4 +23,6 @@ export interface MatchControls {
 
 export interface UseMatchStateResult extends MatchControls {
   match: MatchState | null;
+  /** The channel has been read: until then `match` is null for lack of data. */
+  loaded: boolean;
 }

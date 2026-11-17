@@ -76,7 +76,7 @@ export const useMatchState = (pluginApi: PluginApi): UseMatchStateResult => {
   }, [pushEntry, match?.round]);
 
   return {
-    match, start, newRound, stop,
+    match, loaded: !loading && !error, start, newRound, stop,
   };
 };
 

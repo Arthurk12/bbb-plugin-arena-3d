@@ -77,9 +77,14 @@ export const useArenaMainArea = ({ pluginApi, showArena, session }: ArenaMainAre
 };
 
 /** Tells everyone when a match starts or a new round begins (not on the first read). */
-export const useMatchNotifications = ({ pluginApi, intl, match }: MatchNotificationsOptions) => {
+export const useMatchNotifications = ({
+  pluginApi, intl, match, loaded,
+}: MatchNotificationsOptions) => {
   const previous = useRef<typeof match | undefined>(undefined);
   useEffect(() => {
+    // Until the channel loads, `match` is null for lack of data, not because no match runs:
+    // recording it would make a running match look new to whoever joins late.
+    if (!loaded) return;
     const before = previous.current;
     previous.current = match;
     if (before === undefined || !match?.active) return;
@@ -92,5 +97,5 @@ export const useMatchNotifications = ({ pluginApi, intl, match }: MatchNotificat
       icon: { svgContent: ARENA_ICON },
       type: NotificationTypeUiCommand.INFO,
     });
-  }, [match?.entryId, match?.active, match?.round]);
+  }, [loaded, match?.entryId, match?.active, match?.round]);
 };
