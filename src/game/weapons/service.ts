@@ -62,7 +62,7 @@ export const resolveShot = (
   weapon: WeaponDefinition,
 ): ShotResult => {
   const result: ShotResult = {
-    damageByUser: new Map(), headshot: false, impacts: [], impactOnPlayer: [],
+    damageByUser: new Map(), headshot: false, headshotUsers: new Set(), impacts: [], impactOnPlayer: [],
   };
   directions.forEach((dir) => {
     const wall = rayBoxes(origin, dir, solids, weapon.range);
@@ -73,7 +73,10 @@ export const resolveShot = (
         target.userId,
         (result.damageByUser.get(target.userId) ?? 0) + damage,
       );
-      if (target.head) result.headshot = true;
+      if (target.head) {
+        result.headshot = true;
+        result.headshotUsers.add(target.userId);
+      }
       result.impacts.push(pointAlong(origin, dir, target.distance));
       result.impactOnPlayer.push(true);
     } else {

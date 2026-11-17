@@ -52,27 +52,27 @@ Keys only reach the game while the mouse is captured, so typing in the chat neve
 
 ## Multiplayer
 
-All traffic goes through two plugin data channels; there is no game server.
+The match itself is a plugin data channel; the game traffic goes through the arena relay, a small
+WebSocket service next to BBB (see [Relay](#relay)).
 
 | Channel | Written by | Content |
 |---|---|---|
-| `match` | moderators | `{ active, round }`: one entry per match, replaced on a new round |
-| `players` | everyone (one entry each, replaced) | position, aim, health, weapon, shot and hit counters, deaths and who caused them, recent hits |
+| `match` | moderators | `{ active, round }`: a single entry, replaced on a new round and on stop; a new match deletes it and pushes a new one |
 
-- **Sending:** each player replaces its own entry at most every 250 ms, only when something
-  changed (moves under 3 cm are ignored), plus an 8 s heartbeat while in the arena.
-- **Drawing others:** remote players are drawn 600 ms in the past and blended between updates
-  (data channels reach clients through a Hasura live query refetched every ~333 ms). Players not
-  heard from for 25 s, who hid the arena, or who left the meeting are not drawn.
-- **Hits:** the shooter decides what it hit, against the players as drawn on its screen, and
-  lists the hit (target, damage, a sequence number) in its own entry for 3 s. The target applies
-  each hit once. This favours the shooter, as most casual shooters do; with ~1 s of end-to-end
-  delay, you can occasionally be hit just after ducking behind a wall.
-- **Score:** each victim records who fragged it (`kb`) in its own entry, so every client computes
-  the same scoreboard, and a reload keeps your score for the round.
-- **Trust:** like any client-authoritative game, a modified client can lie about hits. Payloads
-  from other clients are validated (types, ranges, sizes), and identity always comes from the
-  data-channel entry's creator, never from the payload.
+- **Rooms:** each round of a match is a room on the relay. Opening the arena joins it; hiding the
+  arena or closing the tab leaves it. Scores belong to the room and outlive players who leave.
+- **Sending:** each player sends its pose at most 20 times a second, only when it moved (2 cm or
+  0.02 rad), and once a second while idle.
+- **Drawing others:** the relay sends snapshots at 20 Hz; remote players are drawn 100 ms behind
+  the relay's clock and blended between snapshots.
+- **Hits:** the relay decides. A shot carries the time of what the shooter saw; the relay rewinds
+  the targets to that moment (at most 200 ms back, and only if that time agrees with the
+  shooter's measured latency), regenerates the pellets from the shot's seed, and checks walls,
+  cooldown and who was alive. You can still be hit just after ducking behind a wall, but by at
+  most 0.2 s of movement.
+- **Trust:** identity comes from BBB's session check in nginx, never from a message. Damage,
+  kills and scores cannot be forged. Positions are still reported by each client and only
+  checked for speed, so a modified client can still see through walls or aim for you.
 
 ## Settings
 
@@ -83,6 +83,7 @@ All optional:
 | `debug` | boolean | `false` | Debug-level logs |
 | `maxPlayers` | int (2–64) | `16` | Players drawn at once, yourself included; the nearest ones win |
 | `renderScale` | float (0.25–1) | `0.75` | Fraction of the screen resolution the game renders at (pixelated upscale); lower is faster |
+| `relayUrl` | string | empty | WebSocket URL of the relay; empty means `wss://<the BBB server serving the plugin>/arena-relay` |
 
 ```yaml
 # /etc/bigbluebutton/bbb-html5.yml
@@ -94,7 +95,37 @@ public:
         debug: false
         maxPlayers: 16
         renderScale: 0.75
+        relayUrl: ''
 ```
+
+## Relay
+
+The arena needs its relay (`relay/`): without it the game shows "Can't reach the arena server".
+It is a small Node service, authoritative for hits, health, deaths and scores, that runs next to
+BBB on loopback, behind nginx `auth_request` like `/bbb-webrtc-sfu`:
+
+```nginx
+location /arena-relay {
+    auth_request /bigbluebutton/connection/checkAuthorization;
+    auth_request_set $auth_status $upstream_status;
+    auth_request_set $user_id $sent_http_user_id;
+    auth_request_set $meeting_id $sent_http_meeting_id;
+    auth_request_set $user_name $sent_http_user_name;
+    proxy_pass http://127.0.0.1:8099;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header User-Id $user_id;
+    proxy_set_header Meeting-Id $meeting_id;
+    proxy_set_header User-Name $user_name;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 60s;
+}
+```
+
+nginx always overwrites the identity headers, so a client cannot choose who it is. Build and run
+it with `npm run build-relay` and `npm run start-relay`; it listens on `RELAY_HOST` (default
+`127.0.0.1`) and `RELAY_PORT` (default `8099`), and `GET /healthz` answers `ok`.
 
 ## Development
 
@@ -120,11 +151,14 @@ for a remote server expose the dev server through ngrok.
 src/
   components/   React: plugin wiring (main), moderator modal, arena host (lazy), HUD, scoreboard
   match/        the `match` data channel
-  net/          the `players` data channel and the game net (throttling, interpolation, events)
+  protocol/     messages and limits shared with the relay
+  relay-client/ WebSocket connection to the relay, clock sync, snapshot interpolation
+  net/          limits shared with the relay (coordinates, health, ids)
   game/         three.js game, no React: engine, level, player physics, weapons, combat,
                 remote avatars, effects and audio, input
   settings/  session/  store/  users/  commons/
-tests/unit/     vitest: net, physics, weapons, combat, level, match, settings
+relay/src/       the relay service (Node, WebSocket)
+tests/unit/     vitest: relay, relay client, physics, weapons, combat, level, match, settings
 ```
 
 ## Usage logs

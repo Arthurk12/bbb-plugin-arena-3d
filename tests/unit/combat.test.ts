@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canHeal, createCombatState, heal, respawn, respawnDue, respawnInSeconds, restoreScore, takeDamage,
+  canHeal, createCombatState, heal, respawn, respawnDue, respawnInSeconds, takeDamage,
 } from '../../src/game/combat/service';
 import { RESPAWN_DELAY_MS, SPAWN_PROTECTION_MS } from '../../src/game/combat/constants';
 
@@ -51,25 +51,5 @@ describe('combat', () => {
     expect(canHeal(full)).toBe(false);
     const hurt = takeDamage(full, 30, 'me', 'me', 0).state;
     expect(heal(hurt, 50).health).toBe(100);
-  });
-
-  it('restores the stored score after a reload', () => {
-    const restored = restoreScore(createCombatState(0), {
-      r: 'r',
-      on: true,
-      p: [0, 0, 0],
-      y: 0,
-      x: 0,
-      h: 100,
-      w: 0,
-      s: 0,
-      t: 0,
-      hn: 0,
-      dt: 3,
-      lk: 'enemy',
-      kb: { enemy: 2 },
-      hits: [],
-    });
-    expect(restored).toMatchObject({ deaths: 3, lastKiller: 'enemy', killedBy: { enemy: 2 } });
   });
 });

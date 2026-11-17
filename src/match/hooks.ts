@@ -28,7 +28,9 @@ export const useCurrentUserRole = (pluginApi: PluginApi): CurrentUserRole => {
 };
 
 export const useMatchState = (pluginApi: PluginApi): UseMatchStateResult => {
-  const { data: response, pushEntry, replaceEntry } = pluginApi.useDataChannel!<MatchStatePayload>(
+  const {
+    data: response, pushEntry, replaceEntry, deleteEntry,
+  } = pluginApi.useDataChannel!<MatchStatePayload>(
     DATA_CHANNELS.MATCH,
     DataChannelTypes.LATEST_ITEM,
   );
@@ -54,12 +56,16 @@ export const useMatchState = (pluginApi: PluginApi): UseMatchStateResult => {
     `Match ${action} in ${pluginApi.pluginName}`,
   );
 
-  // A new match is a new entry, so everyone's "hide the arena" choice starts over.
+  // A new match is a new entry, so everyone's "hide the arena" choice starts over. The stopped
+  // match's entry is deleted first, so the channel never holds more than one. Until the channel
+  // loads (and the SDK hands over the push function) we cannot tell whether a match runs.
   const start = useCallback(() => {
+    if (!pushEntry || loading || error || match?.active) return;
+    if (match) deleteEntry([match.entryId]);
     const round = newRoundId();
     pushEntry({ active: true, round });
     logChange('started', round);
-  }, [pushEntry]);
+  }, [pushEntry, deleteEntry, loading, error, match?.entryId, match?.active]);
 
   // A new round keeps the entry (and the hide choices) and zeroes every score.
   const newRound = useCallback(() => {
@@ -69,11 +75,12 @@ export const useMatchState = (pluginApi: PluginApi): UseMatchStateResult => {
     logChange('new-round', round);
   }, [replaceEntry, match?.entryId, match?.active]);
 
+  // Stopping replaces the entry, so it stays the latest and the channel does not grow.
   const stop = useCallback(() => {
-    if (!match) return;
-    pushEntry({ active: false, round: match.round });
+    if (!match?.active) return;
+    replaceEntry(match.entryId, { active: false, round: match.round });
     logChange('stopped', match.round);
-  }, [pushEntry, match?.round]);
+  }, [replaceEntry, match?.entryId, match?.active, match?.round]);
 
   return {
     match, start, newRound, stop,

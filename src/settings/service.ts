@@ -1,5 +1,7 @@
 import { ArenaSettings } from './types';
-import { DEFAULT_SETTINGS, MAX_PLAYERS_RANGE, RENDER_SCALE_RANGE } from './constants';
+import {
+  DEFAULT_SETTINGS, MAX_PLAYERS_RANGE, MAX_RELAY_URL_LENGTH, RELAY_URL_PATTERN, RENDER_SCALE_RANGE,
+} from './constants';
 
 type RawSettings = Record<string, unknown> | undefined | null;
 
@@ -25,6 +27,13 @@ const readIntInRange = (value: unknown, fallback: number, range: Range): number 
   Math.round(readNumberInRange(value, fallback, range))
 );
 
+const readRelayUrl = (value: unknown, fallback: string): string => {
+  if (typeof value !== 'string') return fallback;
+  const url = value.trim();
+  if (!url) return '';
+  return url.length <= MAX_RELAY_URL_LENGTH && RELAY_URL_PATTERN.test(url) ? url : fallback;
+};
+
 /**
  * Merges the raw plugin settings over the defaults, discarding values of the wrong type.
  * The manifest's `defaultValue`s are not applied by the core for optional settings,
@@ -38,4 +47,5 @@ export const parseSettings = (raw: RawSettings): ArenaSettings => ({
     DEFAULT_SETTINGS.renderScale,
     RENDER_SCALE_RANGE,
   ),
+  relayUrl: readRelayUrl(raw?.relayUrl, DEFAULT_SETTINGS.relayUrl),
 });
