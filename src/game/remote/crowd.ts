@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { WEAPON_IDS } from '../weapons/constants';
 import {
   ARM_AIM, AVATAR, AVATAR_COLORS, CROWD_CAPACITY, DEATH_TILT, FLASH_SIZE, LEG_SWING, NAME_TAG,
   REMOTE_FLASH_MS, SHADOW, USER_COLOR_SL,
@@ -14,6 +15,11 @@ const TINT_DECLARATION = 'attribute float tint;\n';
 const INSTANCE_COLOR_LINE = 'vColor.rgb *= instanceColor.rgb;';
 const TINTED_INSTANCE_COLOR_LINE = 'vColor.rgb *= mix( vec3( 1.0 ), instanceColor.rgb, tint );';
 
+/** The arms carry every gun; a gun's vertices collapse unless its player holds it. */
+const HELD_WEAPON_DECLARATION = 'attribute float weapon;\nattribute float heldWeapon;\n';
+const HIDE_OTHER_WEAPONS = '#include <begin_vertex>\n'
+  + 'if ( weapon > 0.5 && abs( weapon - heldWeapon ) > 0.5 ) transformed = vec3( 0.0 );';
+
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 const WHITE = new THREE.Color(1, 1, 1);
 
@@ -22,6 +28,8 @@ interface Member {
   removed: boolean;
   color: THREE.Color;
   walkPhase: number;
+  /** Index of the weapon in hand. */
+  weapon: number;
   flashUntil: number;
   torso: THREE.Matrix4;
   head: THREE.Matrix4;
@@ -45,16 +53,25 @@ const NOOP_AVATAR: RemoteAvatar = {
   dispose: () => {},
 };
 
-/** Lambert with baked vertex colors, where the player's color reaches only the cloth. */
-const createBodyMaterial = (): THREE.MeshLambertMaterial => {
+/**
+ * Lambert with baked vertex colors, where the player's color reaches only the cloth. The arms'
+ * material (`holdsWeapons`) also shows only the gun each player holds.
+ */
+const createBodyMaterial = (holdsWeapons = false): THREE.MeshLambertMaterial => {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
   material.onBeforeCompile = (shader) => {
     const colorVertex = THREE.ShaderChunk.color_vertex
       .replace(INSTANCE_COLOR_LINE, TINTED_INSTANCE_COLOR_LINE);
-    // eslint-disable-next-line no-param-reassign
-    shader.vertexShader = TINT_DECLARATION
+    const vertexShader = TINT_DECLARATION
       + shader.vertexShader.replace('#include <color_vertex>', colorVertex);
+    // eslint-disable-next-line no-param-reassign
+    shader.vertexShader = holdsWeapons
+      ? HELD_WEAPON_DECLARATION
+        + vertexShader.replace('#include <begin_vertex>', HIDE_OTHER_WEAPONS)
+      : vertexShader;
   };
+  // Both variants share the callback's source, which three.js would take as the same program.
+  material.customProgramCacheKey = () => (holdsWeapons ? 'arena-arms' : 'arena-body');
   return material;
 };
 
@@ -102,6 +119,7 @@ export const createAvatarCrowd = (
 ): AvatarCrowd => {
   const parts = buildAvatarParts();
   const bodyMaterial = createBodyMaterial();
+  const armsMaterial = createBodyMaterial(true);
   const flashGeometry = new THREE.BoxGeometry(FLASH_SIZE, FLASH_SIZE, FLASH_SIZE);
   const flashMaterial = new THREE.MeshBasicMaterial({
     color: AVATAR_COLORS.flash,
@@ -141,14 +159,17 @@ export const createAvatarCrowd = (
   const legs = instanced(parts.leg, bodyMaterial, capacity * LEGS_PER_PLAYER, true);
   const torsos = instanced(parts.torso, bodyMaterial, capacity, true);
   const heads = instanced(parts.head, bodyMaterial, capacity, true);
-  const arms = instanced(parts.arms, bodyMaterial, capacity, true);
+  const arms = instanced(parts.arms, armsMaterial, capacity, true);
+  const heldWeapons = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+  heldWeapons.setUsage(THREE.DynamicDrawUsage);
+  parts.arms.setAttribute('heldWeapon', heldWeapons);
   const flashes = instanced(flashGeometry, flashMaterial, capacity, false);
   const shadows = instanced(shadowGeometry, shadowMaterial, capacity, false);
   const meshes = [legs, torsos, heads, arms, flashes, shadows];
   const coloredMeshes = [legs, torsos, heads, arms];
 
   const members: Member[] = [];
-  const muzzle = muzzleLocal();
+  const muzzles = WEAPON_IDS.map((id) => muzzleLocal(id));
   const step = new THREE.Matrix4();
   const point = new THREE.Vector3();
 
@@ -168,6 +189,8 @@ export const createAvatarCrowd = (
     legs.setMatrixAt(slot * LEGS_PER_PLAYER + 1, member.legRight);
     flashes.setMatrixAt(slot, member.flash);
     shadows.setMatrixAt(slot, member.shadow);
+    heldWeapons.setX(slot, member.weapon + 1);
+    heldWeapons.needsUpdate = true;
     meshes.forEach((mesh) => { mesh.instanceMatrix.needsUpdate = true; });
   };
 
@@ -193,8 +216,11 @@ export const createAvatarCrowd = (
   const update = (member: Member, frame: AvatarFrame) => {
     if (member.removed) return;
     const {
-      pose, speed, alive, dt, now, viewerDistance,
+      pose, speed, alive, dt, now, viewerDistance, weapon,
     } = frame;
+    // eslint-disable-next-line no-param-reassign
+    member.weapon = weapon;
+    const muzzle = muzzles[weapon] ?? muzzles[0];
     const [x, y, z] = pose.p;
     member.torso.makeRotationY(pose.y).setPosition(x, y, z);
     member.torso.multiply(step.makeRotationX(alive ? 0 : DEATH_TILT));
@@ -257,6 +283,7 @@ export const createAvatarCrowd = (
       removed: false,
       color: new THREE.Color().setHSL(userHue(userId), USER_COLOR_SL[0], USER_COLOR_SL[1]),
       walkPhase: 0,
+      weapon: 0,
       flashUntil: -Infinity,
       // Hidden until the first update places them.
       torso: HIDDEN.clone(),
@@ -288,6 +315,7 @@ export const createAvatarCrowd = (
       },
       flash: (now) => { member.flashUntil = now + REMOTE_FLASH_MS; },
       muzzlePosition: () => {
+        const muzzle = muzzles[member.weapon] ?? muzzles[0];
         point.set(muzzle[0], muzzle[1], muzzle[2]).applyMatrix4(member.arms);
         return [point.x, point.y, point.z];
       },
@@ -308,6 +336,7 @@ export const createAvatarCrowd = (
       flashGeometry.dispose();
       shadowGeometry.dispose();
       bodyMaterial.dispose();
+      armsMaterial.dispose();
       flashMaterial.dispose();
       shadowMaterial.dispose();
       shadowTexture.dispose();

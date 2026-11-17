@@ -1,5 +1,6 @@
 import { Vec3 } from '../../commons/types';
 import { Hitbox, HitZone } from '../hitbox/types';
+import { ModelPart, Triple } from '../models/types';
 import { WEAPON_IDS } from './constants';
 
 export type WeaponId = typeof WEAPON_IDS[number];
@@ -46,8 +47,26 @@ export interface ShotResult {
   impactOnPlayer: boolean[];
 }
 
+/** A gun as seen in your hands: barrel along -z, top up, meters before VIEW_MODEL.scale. */
+export interface WeaponModel {
+  parts: ModelPart[];
+  /** Where shots leave the barrel. */
+  muzzle: Triple;
+  /** Size of the muzzle flash. */
+  flashSize: number;
+  /** At full recoil: how far the gun comes back (meters) and tips up (radians). */
+  kick: { distance: number; angle: number };
+}
+
+/** A gun as others see it: fewer parts, barrel along -z, top up, the hand at the origin. */
+export interface HeldWeaponModel {
+  parts: ModelPart[];
+  muzzle: Triple;
+}
+
 export interface ViewModel {
-  setWeapon: (weapon: WeaponId) => void;
+  /** Lowers the gun in hand and raises `weapon` (VIEW_MODEL.switchMs). */
+  setWeapon: (weapon: WeaponId, now: number) => void;
   /** Bobs with movement and recovers from recoil. */
   update: (dt: number, speed: number, now: number, visible: boolean) => void;
   fire: (now: number) => void;

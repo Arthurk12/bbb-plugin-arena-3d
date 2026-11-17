@@ -9,7 +9,6 @@ export const AVATAR = {
   legOffsetX: 0.13,
   arm: [0.18, 0.6, 0.2] as [number, number, number],
   armOffsetX: 0.4,
-  gun: [0.1, 0.12, 0.5] as [number, number, number],
   visor: [0.38, 0.08, 0.05] as [number, number, number],
   nameTagHeight: 2.2,
 };
@@ -29,8 +28,6 @@ export const AVATAR_DETAIL = {
   helmetRise: 0.04,
   stripeHeight: 0.05,
   hand: [0.16, 0.12, 0.18] as [number, number, number],
-  /** Part of the gun's length inside the hand. */
-  gunGrip: 0.12,
 };
 
 /** Pieces drawn in `cloth` take the player's color; the others keep their own. */
@@ -43,16 +40,7 @@ export const AVATAR_COLORS = {
   skin: 0xe0ac7e,
   helmet: 0x3d4450,
   visor: 0x39e6ff,
-  gun: 0x30343c,
   flash: 0xfff1a8,
-};
-
-/** Brightness baked into each face, so blocks read as solid even under flat light. */
-export const FACE_SHADE = {
-  top: 1,
-  side: 0.82,
-  front: 0.9,
-  bottom: 0.6,
 };
 
 /** Shoulder rotation that points a hanging arm straight ahead. */

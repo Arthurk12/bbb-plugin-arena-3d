@@ -43,14 +43,34 @@ export const VIEW_MODEL = {
   bobAmplitude: 0.025, // meters
   bobFullSpeed: 8, // m/s
   kickRecovery: 6, // per second
-  kickDistance: 0.08, // meters
-  kickAngle: 0.25, // radians
   flashMs: 60,
-  colors: {
-    metal: 0x7d8894,
-    dark: 0x2c3036,
-    wood: 0x7a4a22,
-    glow: 0x3ff6ff,
-    flash: 0xfff1a8,
-  },
+  /** Lowering the old gun and raising the new one; no shooting meanwhile. */
+  switchMs: 260,
+  /** How far the gun drops (meters) and tips down (radians) halfway through a switch. */
+  switchDrop: 0.25,
+  switchTilt: 0.6,
+  /** Standing still, the gun sways in a slow figure eight. */
+  swayFrequency: 1.1, // radians per second
+  swayAmplitude: 0.006, // meters
+  /** Height of the figure eight relative to its width. */
+  swayHeight: 0.5,
+  flashColor: 0xfff1a8,
+};
+
+/** Colors of the gun models. */
+export const WEAPON_PALETTE = {
+  steel: 0xa9b3bd,
+  metal: 0x7d8894,
+  gunmetal: 0x4a5059,
+  dark: 0x2c3036,
+  rubber: 0x1c1e22,
+  wood: 0x7a4a22,
+  woodDark: 0x5a3418,
+  olive: 0x5b6142,
+  oliveDark: 0x464b33,
+  brass: 0xc9a43a,
+  shell: 0xb3312a,
+  cyan: 0x3ff6ff,
+  green: 0x9dff5c,
+  lens: 0x7fd4ff,
 };

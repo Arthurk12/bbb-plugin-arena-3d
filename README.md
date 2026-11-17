@@ -38,6 +38,8 @@ downloads no assets and uses no third-party game content.
 
 - The hit marker tells what you hit: red and larger for the head, grey and smaller for arms and
   legs. The kill feed shows the weapon of each frag and marks headshots with ◎.
+- Switching weapons lowers the gun in hand and raises the next one in about a quarter of a
+  second; you can't shoot meanwhile. Everyone else sees the gun you hold.
 - 100 health; health kits on the map (local to each player: each one sees and takes their own).
 - Dying shows who fragged you and respawns you after 3 seconds at the spawn point farthest from
   everyone, with 1.5 s of protection.

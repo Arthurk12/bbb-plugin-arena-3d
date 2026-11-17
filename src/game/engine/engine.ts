@@ -37,7 +37,7 @@ import { stepPlayer } from '../player/service';
 import { CollisionWorld, MoveIntent, PlayerBody } from '../player/types';
 import { createAvatarCrowd } from '../remote/crowd';
 import { RemoteAvatar } from '../remote/types';
-import { WEAPONS } from '../weapons/constants';
+import { VIEW_MODEL, WEAPONS } from '../weapons/constants';
 import {
   aimDirection, canFire, cycleWeapon, pelletDirections, resolveShot, weaponAt, weaponIndex,
 } from '../weapons/service';
@@ -152,6 +152,8 @@ export const createArenaEngine = ({
   let combat: CombatState = createCombatState(performance.now());
   let weapon: WeaponId = 'blaster';
   let lastShotAt = -Infinity;
+  /** A freshly drawn gun can't shoot until it is up. */
+  let weaponReadyAt = 0;
   let shotId = 0;
   let hazardDamage = 0;
   let fellThisLife = false;
@@ -359,10 +361,11 @@ export const createArenaEngine = ({
     pitch = clamp(pitch - lookY * MOUSE_SENSITIVITY, -MAX_PITCH, MAX_PITCH);
   };
 
-  const switchWeapon = (next: WeaponId) => {
+  const switchWeapon = (next: WeaponId, now: number) => {
     if (next === weapon) return;
     weapon = next;
-    viewModel.setWeapon(weapon);
+    weaponReadyAt = now + VIEW_MODEL.switchMs;
+    viewModel.setWeapon(weapon, now);
   };
 
   /** The level hurts us here; the relay applies it (a batch at a time, to spare messages). */
@@ -444,6 +447,7 @@ export const createArenaEngine = ({
       const { alive } = latest;
       remote.avatar.update({
         pose, speed: remote.speed, alive, dt, now: performance.now(),
+        weapon: weaponIndex(weaponAt(latest.w)),
         viewerDistance: distanceXZ(pose.p, body.position),
       });
       const user = context.users[userId];
@@ -461,7 +465,7 @@ export const createArenaEngine = ({
    */
   const fire = (targets: ShotTarget[], now: number) => {
     const definition = WEAPONS[weapon];
-    if (!canFire(lastShotAt, now, definition)) return;
+    if (now < weaponReadyAt || !canFire(lastShotAt, now, definition)) return;
     lastShotAt = now;
     shotId += 1;
     const seed = Math.floor(Math.random() * SEED_RANGE);
@@ -570,8 +574,8 @@ export const createArenaEngine = ({
     const relayNow = connection?.clock.relayNow(now) ?? null;
     renderTime = relayNow === null ? null : relayNow - RELAY_TIMING.interpolationDelayMs;
     if (controls.locked) look(controls.lookX, controls.lookY);
-    if (controls.weaponSlot !== null) switchWeapon(weaponAt(controls.weaponSlot));
-    if (controls.weaponStep) switchWeapon(cycleWeapon(weapon, controls.weaponStep));
+    if (controls.weaponSlot !== null) switchWeapon(weaponAt(controls.weaponSlot), now);
+    if (controls.weaponStep) switchWeapon(cycleWeapon(weapon, controls.weaponStep), now);
     if (controls.toggleMute) {
       muted = !muted;
       audio.setMuted(muted);

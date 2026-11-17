@@ -6,6 +6,8 @@ export interface AvatarFrame {
   /** Horizontal speed, m/s, for the walk animation. */
   speed: number;
   alive: boolean;
+  /** Index of the weapon in hand (in WEAPON_IDS). */
+  weapon: number;
   dt: number; // seconds
   now: number; // ms
   /** Distance from the local player, meters: far name tags are hidden. */

@@ -3,11 +3,13 @@ import * as THREE from 'three';
 import { createAvatarCrowd } from '../../src/game/remote/crowd';
 import { AVATAR, NAME_TAG, REMOTE_FLASH_MS } from '../../src/game/remote/constants';
 import { AvatarFrame } from '../../src/game/remote/types';
+import { WEAPON_IDS } from '../../src/game/weapons/constants';
 
 const frame = (p: [number, number, number], extra: Partial<AvatarFrame> = {}): AvatarFrame => ({
   pose: { p, y: 0, x: 0 },
   speed: 0,
   alive: true,
+  weapon: 0,
   dt: 0.016,
   now: 1000,
   viewerDistance: 5,
@@ -67,6 +69,22 @@ describe('createAvatarCrowd', () => {
     expect(x).toBeCloseTo(5 + AVATAR.armOffsetX, 1);
     expect(z).toBeLessThan(5 - 0.5);
     expect(Math.abs(y - AVATAR.shoulderHeight)).toBeLessThan(0.2);
+  });
+
+  it('shows each player the gun they hold, with its muzzle at the barrel', () => {
+    const scene = new THREE.Scene();
+    const crowd = createAvatarCrowd(scene);
+    const avatar = crowd.add('a');
+    const arms = instancedMeshes(scene).find((mesh) => mesh.geometry.getAttribute('heldWeapon'))!;
+    const held = arms.geometry.getAttribute('heldWeapon');
+    avatar.update(frame([0, 0, 0]));
+    expect(held.getX(0)).toBe(1);
+    const blasterZ = avatar.muzzlePosition()[2];
+    const shotgun = WEAPON_IDS.indexOf('shotgun');
+    avatar.update(frame([0, 0, 0], { weapon: shotgun }));
+    expect(held.getX(0)).toBe(shotgun + 1);
+    // Facing -z: the longer gun reaches further forward.
+    expect(avatar.muzzlePosition()[2]).toBeLessThan(blasterZ - 0.1);
   });
 
   it('shows the muzzle flash only briefly after a shot', () => {

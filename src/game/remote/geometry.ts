@@ -1,69 +1,53 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AVATAR, AVATAR_COLORS, AVATAR_DETAIL, FACE_SHADE } from './constants';
+import { mergeParts, modelGeometry, shadedBox } from '../models/service';
+import { Triple } from '../models/types';
+import { WEAPON_IDS } from '../weapons/constants';
+import { HELD_MODELS } from '../weapons/models';
+import { WeaponId } from '../weapons/types';
+import { AVATAR, AVATAR_COLORS, AVATAR_DETAIL } from './constants';
 import { AvatarPartGeometries } from './types';
-
-type Triple = [number, number, number];
-
-/** Shade of each BoxGeometry face, in its order: +x, -x, +y, -y, +z, -z. */
-const FACE_SHADES = [
-  FACE_SHADE.side, FACE_SHADE.side, FACE_SHADE.top, FACE_SHADE.bottom, FACE_SHADE.front,
-  FACE_SHADE.front,
-];
-
-const VERTICES_PER_FACE = 4;
 
 const CLOTH = 1;
 const OWN_COLOR = 0;
 
-/**
- * A box with its color baked into the vertices, each face a little lighter or darker.
- * `tint` 1 takes the player's color (instance color), 0 keeps the box's own color.
- */
+/** Vertex tag of the arms themselves; a gun's vertices carry its weapon index + 1. */
+const BARE_ARMS = 0;
+
+/** `tint` 1 takes the player's color (instance color), 0 keeps the box's own color. */
 const coloredBox = (
   size: Triple,
   center: Triple,
   color: number,
   tint: typeof CLOTH | typeof OWN_COLOR,
-): THREE.BufferGeometry => {
-  const geometry = new THREE.BoxGeometry(size[0], size[1], size[2]);
-  geometry.translate(center[0], center[1], center[2]);
-  const base = new THREE.Color(color);
+): THREE.BufferGeometry => shadedBox(size, center, color, { tint });
+
+/** Marks every vertex of `geometry` with `tag` (see BARE_ARMS). */
+const tagWeapon = (geometry: THREE.BufferGeometry, tag: number): THREE.BufferGeometry => {
   const count = geometry.getAttribute('position').count;
-  const colors = new Float32Array(count * 3);
-  for (let i = 0; i < count; i += 1) {
-    const shade = FACE_SHADES[Math.floor(i / VERTICES_PER_FACE)];
-    colors[i * 3] = base.r * shade;
-    colors[i * 3 + 1] = base.g * shade;
-    colors[i * 3 + 2] = base.b * shade;
-  }
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.setAttribute('tint', new THREE.BufferAttribute(new Float32Array(count).fill(tint), 1));
+  geometry.setAttribute('weapon', new THREE.BufferAttribute(new Float32Array(count).fill(tag), 1));
   return geometry;
 };
 
-const merge = (parts: THREE.BufferGeometry[]): THREE.BufferGeometry => {
-  const merged = mergeGeometries(parts);
-  parts.forEach((part) => part.dispose());
-  if (!merged) throw new Error('avatar parts could not be merged');
-  return merged;
-};
+/** Where the right hand holds a gun, in the arms' frame (shoulder center, arms hanging down). */
+const GRIP: Triple = [AVATAR.armOffsetX, -AVATAR.arm[1] - AVATAR_DETAIL.hand[1] / 2, 0];
 
-/** Where the gun's muzzle is, in the arms' frame (shoulder center, arms hanging down). */
-export const muzzleLocal = (): Triple => [
-  AVATAR.armOffsetX,
-  -AVATAR.arm[1] - AVATAR.gun[2] + AVATAR_DETAIL.gunGrip,
-  -AVATAR.gun[1] / 2,
-];
+/** Turns a held model (barrel along -z, top up) to hang along the arm: barrel down, top forward. */
+const HOLD = new THREE.Matrix4().makeRotationX(-Math.PI / 2).setPosition(GRIP[0], GRIP[1], GRIP[2]);
+
+/** Where the muzzle of `weapon` is, in the arms' frame. */
+export const muzzleLocal = (weapon: WeaponId): Triple => {
+  const point = new THREE.Vector3(...HELD_MODELS[weapon].muzzle).applyMatrix4(HOLD);
+  return [point.x, point.y, point.z];
+};
 
 /**
  * The blocky soldier, one merged geometry per moving part, each around its pivot: legs at the
- * hip, head at the neck, both arms and the gun at the shoulders, the torso at the feet.
+ * hip, head at the neck, both arms and every gun at the shoulders, the torso at the feet.
  */
 export const buildAvatarParts = (): AvatarPartGeometries => {
   const legHeight = AVATAR.leg[1];
   const { boot } = AVATAR_DETAIL;
-  const leg = merge([
+  const leg = mergeParts([
     coloredBox(AVATAR.leg, [0, -legHeight / 2, 0], AVATAR_COLORS.legs, OWN_COLOR),
     coloredBox(
       boot,
@@ -75,7 +59,7 @@ export const buildAvatarParts = (): AvatarPartGeometries => {
 
   const torsoCenter = AVATAR.hipHeight + AVATAR.torso[1] / 2;
   const { belt, backpack, shoulderPad } = AVATAR_DETAIL;
-  const torso = merge([
+  const torso = mergeParts([
     coloredBox(AVATAR.torso, [0, torsoCenter, 0], AVATAR_COLORS.cloth, CLOTH),
     coloredBox(belt, [0, AVATAR.hipHeight + belt[1] / 2, 0], AVATAR_COLORS.belt, OWN_COLOR),
     // Facing -z, so the back is +z.
@@ -97,7 +81,7 @@ export const buildAvatarParts = (): AvatarPartGeometries => {
   const helmetWidth = size + AVATAR_DETAIL.helmetExtra;
   const helmetTop = size + AVATAR_DETAIL.helmetRise;
   const helmetBottom = helmetTop - AVATAR_DETAIL.helmetHeight;
-  const head = merge([
+  const head = mergeParts([
     coloredBox([size, size, size], [0, size / 2, 0], AVATAR_COLORS.skin, OWN_COLOR),
     coloredBox(
       [helmetWidth, AVATAR_DETAIL.helmetHeight, helmetWidth],
@@ -123,25 +107,26 @@ export const buildAvatarParts = (): AvatarPartGeometries => {
 
   const armLength = AVATAR.arm[1];
   const { hand } = AVATAR_DETAIL;
-  const muzzle = muzzleLocal();
-  const arms = merge([
-    ...[-1, 1].flatMap((side) => [
-      coloredBox(AVATAR.arm, [side * AVATAR.armOffsetX, -armLength / 2, 0], AVATAR_COLORS.cloth, CLOTH),
-      coloredBox(
-        hand,
-        [side * AVATAR.armOffsetX, -armLength - hand[1] / 2, 0],
-        AVATAR_COLORS.skin,
-        OWN_COLOR,
-      ),
-    ]),
-    // In the right hand, along the hanging arm: aiming turns it forward.
+  const bareArms = [-1, 1].flatMap((side) => [
     coloredBox(
-      [AVATAR.gun[0], AVATAR.gun[2], AVATAR.gun[1]],
-      [muzzle[0], muzzle[1] + AVATAR.gun[2] / 2, muzzle[2]],
-      AVATAR_COLORS.gun,
+      AVATAR.arm,
+      [side * AVATAR.armOffsetX, -armLength / 2, 0],
+      AVATAR_COLORS.cloth,
+      CLOTH,
+    ),
+    coloredBox(
+      hand,
+      [side * AVATAR.armOffsetX, -armLength - hand[1] / 2, 0],
+      AVATAR_COLORS.skin,
       OWN_COLOR,
     ),
-  ]);
+  ]).map((geometry) => tagWeapon(geometry, BARE_ARMS));
+  // Every gun in the right hand; the material shows only the one each player holds.
+  const guns = WEAPON_IDS.map((id, index) => tagWeapon(
+    modelGeometry(HELD_MODELS[id].parts).applyMatrix4(HOLD),
+    index + 1,
+  ));
+  const arms = mergeParts([...bareArms, ...guns]);
 
   return {
     leg, torso, head, arms,
