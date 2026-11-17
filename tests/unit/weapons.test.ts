@@ -47,6 +47,21 @@ describe('resolveShot', () => {
     expect(result.damageByUser.get('a')).toBe(WEAPONS.blaster.damage * WEAPONS.blaster.headMultiplier);
   });
 
+  it('tells which players were hit in the head', () => {
+    const toBody: Vec3 = [3, 1.0 - EYE[1], -10];
+    const length = Math.hypot(...toBody);
+    const result = resolveShot(
+      EYE,
+      [[0, 0, -1], [toBody[0] / length, toBody[1] / length, toBody[2] / length]],
+      [],
+      [targetAt('a', [0, 0, -10]), targetAt('b', [3, 0, -10])],
+      WEAPONS.shotgun,
+    );
+    expect(result.headshot).toBe(true);
+    expect([...result.headshotUsers]).toEqual(['a']);
+    expect(result.damageByUser.has('b')).toBe(true);
+  });
+
   it('is stopped by a wall in between', () => {
     const wall = block([-2, 0, -6], [2, 4, -5], 'wall');
     const result = resolveShot(EYE, [[0, 0, -1]], [wall], [targetAt('a', [0, 0, -10])], WEAPONS.blaster);
