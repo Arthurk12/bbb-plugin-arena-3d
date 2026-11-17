@@ -96,6 +96,16 @@ public:
         renderScale: 0.75
 ```
 
+## Relay (in development)
+
+The relay is a small WebSocket service that will replace the `players` data channel. It makes
+hits, health and scores authoritative, and rewinds each target to the shooter's view for lag
+compensation, by at most 200 ms. It runs next to BBB on loopback, behind nginx `auth_request`
+(`/bigbluebutton/connection/checkAuthorization`, like `/bbb-webrtc-sfu`), which passes the
+`User-Id`, `Meeting-Id` and `User-Name` headers. Build and run it with `npm run build-relay` and
+`npm run start-relay`. It listens on `RELAY_HOST` (default `127.0.0.1`) and `RELAY_PORT`
+(default `8099`). `GET /healthz` answers `ok`. The plugin does not use it yet.
+
 ## Development
 
 Node 24 (see `.nvmrc`).

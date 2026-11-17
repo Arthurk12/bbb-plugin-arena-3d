@@ -21,16 +21,19 @@
     "react-is": "18.3.1",
     "react-modal": "3.16.3",
     "styled-components": "5.3.11",
-    "three": "0.186.1"
+    "three": "0.186.1",
+    "ws": "8.22.1"
   },
   "overrides": {
     "react-is": "18.3.1"
   },
   "scripts": {
     "build-bundle": "webpack --mode production",
+    "build-relay": "webpack --config webpack.relay.config.js",
+    "start-relay": "node relay/dist/arena-relay.js",
     "start": "webpack serve --mode development",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ./src ./tests --ext .ts,.tsx",
+    "lint": "eslint ./src ./tests ./relay --ext .ts,.tsx",
     "lint:fix": "npm run lint -- --fix",
     "test:unit": "vitest run",
     "test:unit:coverage": "vitest run --coverage",
@@ -60,6 +63,7 @@
     "@types/react-modal": "3.16.3",
     "@types/styled-components": "5.1.36",
     "@types/three": "0.186.0",
+    "@types/ws": "8.18.2",
     "@typescript-eslint/eslint-plugin": "6.21.0",
     "@typescript-eslint/parser": "6.21.0",
     "@vitejs/plugin-react": "4.7.0",
