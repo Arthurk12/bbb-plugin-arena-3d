@@ -122,6 +122,12 @@ const BigNumber = styled.div<{ $danger?: boolean }>`
   color: ${({ $danger }) => ($danger ? HUD_COLORS.danger : HUD_COLORS.text)};
 `;
 
+const Ammo = styled.div<{ $low: boolean }>`
+  margin-top: 4px;
+  font-size: 14px;
+  color: ${({ $low }) => ($low ? HUD_COLORS.danger : HUD_COLORS.text)};
+`;
+
 const Stats = styled.div`
   display: flex;
   gap: 16px;
@@ -264,6 +270,7 @@ export default {
   Corner,
   Label,
   BigNumber,
+  Ammo,
   Stats,
   Feed,
   PlayerName,

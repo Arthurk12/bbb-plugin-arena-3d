@@ -24,7 +24,7 @@ export const intlMessages = defineMessages({
   controlsWeapons: {
     id: 'hud.controls.weapons',
     description: 'Controls help: weapons',
-    defaultMessage: '1–4, Q or mouse wheel: switch weapon',
+    defaultMessage: '1–4, Q or mouse wheel: switch weapon · R: reload',
   },
   controlsOther: {
     id: 'hud.controls.other',
@@ -65,6 +65,16 @@ export const intlMessages = defineMessages({
     id: 'weapon.sniper',
     description: 'Name of the sniper rifle',
     defaultMessage: 'Sniper',
+  },
+  reloading: {
+    id: 'hud.reloading',
+    description: 'Shown instead of the ammo count while reloading',
+    defaultMessage: 'Reloading…',
+  },
+  noAmmo: {
+    id: 'hud.noAmmo',
+    description: 'Shown instead of the ammo count when the weapon has no rounds left',
+    defaultMessage: 'No ammo',
   },
   fraggedBy: {
     id: 'hud.fraggedBy',

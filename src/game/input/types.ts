@@ -14,6 +14,8 @@ export interface InputSnapshot {
   weaponSlot: number | null;
   /** Weapons to cycle by since the last read (wheel, Q). */
   weaponStep: number;
+  /** R pressed since the last read. */
+  reload: boolean;
   toggleMute: boolean;
   /** Whether the pointer is locked to the game. */
   locked: boolean;

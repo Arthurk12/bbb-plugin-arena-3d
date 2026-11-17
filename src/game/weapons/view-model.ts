@@ -41,6 +41,8 @@ export const createViewModel = (camera: THREE.Camera): ViewModel => {
   let bobPhase = 0;
   let kick = 0;
   let flashUntil = -Infinity;
+  let reloadStartedAt = -Infinity;
+  let reloadMs = 0;
 
   const show = (weapon: WeaponId) => {
     shown = weapon;
@@ -64,11 +66,19 @@ export const createViewModel = (camera: THREE.Camera): ViewModel => {
       : (1 - progress) / (1 - SWITCH_MIDPOINT);
   };
 
+  /** 0 at rest, rising to 1 halfway through a reload and back. */
+  const reloadDip = (now: number): number => {
+    const progress = (now - reloadStartedAt) / reloadMs;
+    if (!reloadMs || progress < 0 || progress >= 1) return 0;
+    return Math.sin(progress * Math.PI);
+  };
+
   return {
     setWeapon: (weapon, now) => {
       if (weapon === target) return;
       target = weapon;
       switchStartedAt = now;
+      reloadStartedAt = -Infinity;
     },
     update: (dt, speed, now, visible) => {
       root.visible = visible;
@@ -79,6 +89,7 @@ export const createViewModel = (camera: THREE.Camera): ViewModel => {
       const sway = (1 - moving) * VIEW_MODEL.swayAmplitude;
       const swayPhase = (now / 1000) * VIEW_MODEL.swayFrequency;
       const drop = switchDrop(now);
+      const dip = reloadDip(now);
       const recoil = VIEW_MODELS[shown].kick;
       const [restX, restY, restZ] = VIEW_MODEL.rest;
       root.position.set(
@@ -86,10 +97,13 @@ export const createViewModel = (camera: THREE.Camera): ViewModel => {
         restY + Math.abs(Math.sin(bobPhase)) * bob
           // Twice as fast up and down as sideways: a figure eight.
           + Math.sin(swayPhase * 2) * sway * VIEW_MODEL.swayHeight
-          - drop * VIEW_MODEL.switchDrop,
+          - drop * VIEW_MODEL.switchDrop
+          - dip * VIEW_MODEL.reloadDrop,
         restZ + kick * recoil.distance,
       );
-      root.rotation.x = kick * recoil.angle - drop * VIEW_MODEL.switchTilt;
+      root.rotation.x = kick * recoil.angle - drop * VIEW_MODEL.switchTilt
+        - dip * VIEW_MODEL.reloadTilt;
+      root.rotation.z = dip * VIEW_MODEL.reloadRoll;
       flash.visible = now < flashUntil;
     },
     fire: (now) => {
@@ -97,6 +111,10 @@ export const createViewModel = (camera: THREE.Camera): ViewModel => {
       flashUntil = now + VIEW_MODEL.flashMs;
       // A different burst each shot.
       flash.rotation.z = Math.random() * Math.PI;
+    },
+    reload: (now, durationMs) => {
+      reloadStartedAt = now;
+      reloadMs = durationMs;
     },
     dispose: () => {
       camera.remove(root);

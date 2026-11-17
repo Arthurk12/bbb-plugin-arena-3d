@@ -7,6 +7,7 @@ export const KEY_BINDINGS = {
   walk: ['ShiftLeft', 'ShiftRight'],
   scoreboard: ['Tab'],
   nextWeapon: ['KeyQ'],
+  reload: ['KeyR'],
   mute: ['KeyM'],
 };
 

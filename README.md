@@ -46,6 +46,19 @@ downloads no assets and uses no third-party game content.
 - **Sniper scope:** hold the right mouse button. The view zooms in (75° to 20°), the gun leaves
   the screen, you walk, and the mouse turns slower with the zoom. Fully zoomed in, shots go
   exactly where the crosshairs are; from the hip they spread.
+- **Ammo:** every gun has a magazine and a reserve; each shot spends one round (a shotgun shell
+  counts once). R reloads, and an empty magazine reloads by itself while there is reserve; the
+  gun dips while reloading and can't shoot, and switching weapons cancels it. Amber **ammo
+  boxes** on the yard floor top up every reserve; like the health kits, each player sees and
+  takes their own, and they come back after 20 seconds.
+
+  | Weapon | Magazine | Reserve (start / max) | Reload | Ammo box adds |
+  |---|---|---|---|---|
+  | Blaster | 12 | 36 / 72 | 1.1 s | 24 |
+  | Shotgun | 6 | 12 / 24 | 1.8 s | 8 |
+  | SMG | 30 | 60 / 150 | 1.6 s | 60 |
+  | Sniper | 5 | 5 / 15 | 2.2 s | 5 |
+
 - 100 health; health kits on the map (local to each player: each one sees and takes their own).
 - Dying shows who fragged you and respawns you after 3 seconds at the spawn point farthest from
   everyone, with 1.5 s of protection.
@@ -64,6 +77,7 @@ Click the arena to capture the mouse, then:
 | Space | Jump |
 | Shift | Walk (slower) |
 | 1–4, Q, mouse wheel | Switch weapon |
+| R | Reload |
 | Tab (hold) | Scoreboard |
 | M | Sound on/off |
 | Esc | Release the mouse |
@@ -91,9 +105,11 @@ WebSocket service next to BBB (see [Relay](#relay)).
   checks walls, cooldown, who was alive and which body zone each pellet met. You can still be hit just after ducking behind a wall, but by at
   most 0.2 s of movement.
 - **Trust:** identity comes from BBB's session check in nginx, never from a message. Damage,
-  kills and scores cannot be forged. Positions are still reported by each client and only
-  checked for speed, so a modified client can still see through walls or aim for you; the relay
-  also takes its word that a sniper shot went through the scope.
+  kills, scores and ammo cannot be forged: the relay counts every round, refuses a shot with an
+  empty magazine or during a reload, and gives an ammo box only to a player it sees by it
+  (health kits are still the client's word). Positions are still reported by each client and
+  only checked for speed, so a modified client can still see through walls or aim for you; the
+  relay also takes its word that a sniper shot went through the scope.
 
 ## Settings
 

@@ -15,6 +15,8 @@ export const RELAY_TIMING = {
   viewTimeToleranceMs: 100,
   /** Clients ping this often to keep their estimate of the relay's clock. */
   pingIntervalMs: 2000,
+  /** A reload may finish this much before its time when a shot or a pose asks (network). */
+  reloadToleranceMs: 100,
 };
 
 export const RELAY_LIMITS = {
@@ -41,6 +43,8 @@ export const CLIENT_MESSAGE = {
   SHOT: 'shot',
   ENV: 'env',
   PING: 'ping',
+  RELOAD: 'reload',
+  PICKUP: 'pickup',
 } as const;
 
 export const SERVER_MESSAGE = {
@@ -56,6 +60,7 @@ export const SERVER_MESSAGE = {
   LEAVE: 'leave',
   PONG: 'pong',
   REJECT: 'reject',
+  AMMO: 'ammo',
 } as const;
 
 /** WebSocket close codes the relay uses (4000–4999 are free for applications). */
@@ -84,3 +89,15 @@ export const ENVIRONMENT_WEAPON = -1;
 
 /** Zone index sent in a `hit` or `kill` the level caused (falls, slime). */
 export const ENVIRONMENT_ZONE = -1;
+
+/** Why the relay sent a player their ammo. */
+export const AMMO_UPDATE = {
+  /** Spawning (or joining): everything, as it is now. */
+  SPAWN: 'spawn',
+  /** A reload finished. */
+  RELOAD: 'reload',
+  /** An ammo box was taken: only the reserves changed. */
+  PICKUP: 'pickup',
+  /** A shot or a reload was refused: everything, to correct the client's count. */
+  SYNC: 'sync',
+} as const;

@@ -15,6 +15,7 @@ export const createInputController = (canvas: HTMLCanvasElement): InputControlle
   let weaponSlot: number | null = null;
   let weaponStep = 0;
   let toggleMute = false;
+  let reload = false;
 
   const isLocked = () => document.pointerLockElement === canvas;
 
@@ -26,6 +27,7 @@ export const createInputController = (canvas: HTMLCanvasElement): InputControlle
     const slot = WEAPON_KEYS.indexOf(event.code);
     if (slot >= 0) weaponSlot = slot;
     if (KEY_BINDINGS.nextWeapon.includes(event.code)) weaponStep += 1;
+    if (KEY_BINDINGS.reload.includes(event.code)) reload = true;
     if (KEY_BINDINGS.mute.includes(event.code)) toggleMute = true;
   };
   const onKeyUp = (event: KeyboardEvent) => { pressed.delete(event.code); };
@@ -76,6 +78,7 @@ export const createInputController = (canvas: HTMLCanvasElement): InputControlle
         lookY,
         weaponSlot,
         weaponStep,
+        reload,
         toggleMute,
         locked: isLocked(),
       };
@@ -83,6 +86,7 @@ export const createInputController = (canvas: HTMLCanvasElement): InputControlle
       lookY = 0;
       weaponSlot = null;
       weaponStep = 0;
+      reload = false;
       toggleMute = false;
       return snapshot;
     },

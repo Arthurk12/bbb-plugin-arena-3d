@@ -4,15 +4,21 @@ import { clamp, wrapAngle } from '../../commons/utils';
 import { DATA_TEST } from '../../commons/constants';
 import { seededRandom } from '../../commons/random';
 import { MAX_HEALTH } from '../../net/constants';
-import { ENV_KIND, RELAY_TIMING, SERVER_MESSAGE } from '../../protocol/constants';
+import { AMMO_UPDATE, ENV_KIND, RELAY_TIMING, SERVER_MESSAGE } from '../../protocol/constants';
 import { PlayerInfo, ServerMessage, SnapshotEntry } from '../../protocol/types';
 import { createRelayConnection } from '../../relay-client/connection';
 import { createSnapshotStore } from '../../relay-client/snapshots';
 import { RelayConnection } from '../../relay-client/types';
+import { NO_RELOAD } from '../ammo/constants';
+import {
+  ammoFromLines, canReload, canTakeAmmoBox, hasRound, lowOnAmmo, reloaded, spawnAmmo,
+  spendRound,
+} from '../ammo/service';
+import { Ammo } from '../ammo/types';
 import {
   canHeal, createCombatState, respawn, respawnInSeconds,
 } from '../combat/service';
-import { PICKUP_RADIUS, PICKUP_RESPAWN_MS } from '../combat/constants';
+import { PICKUP_RADIUS, PICKUP_REACH_HEIGHT, PICKUP_RESPAWN_MS } from '../combat/constants';
 import { CombatState } from '../combat/types';
 import { createArenaAudio } from '../effects/audio';
 import { HEARING_DISTANCE, MUZZLE_OFFSET, REMOTE_TRACER_RANGE } from '../effects/constants';
@@ -45,8 +51,8 @@ import {
 import { ShotTarget, WeaponId } from '../weapons/types';
 import { createViewModel } from '../weapons/view-model';
 import {
-  CAMERA, ENV_DAMAGE_BATCH, LIMB_HIT_VOLUME, MAX_FRAME_DT, MAX_TRACERS_PER_SHOT,
-  PICKUP_REACH_HEIGHT, POSE_SEND, SCOPE_LENS_AT, SPEED_SMOOTHING,
+  CAMERA, EMPTY_CLICK_MS, ENV_DAMAGE_BATCH, LIMB_HIT_VOLUME, MAX_FRAME_DT,
+  MAX_TRACERS_PER_SHOT, POSE_SEND, SCOPE_LENS_AT, SPEED_SMOOTHING,
 } from './constants';
 import { ArenaEngine, EngineOptions } from './types';
 
@@ -159,6 +165,12 @@ export const createArenaEngine = ({
   let weaponReadyAt = 0;
   /** How far the scope is zoomed in, 0 to 1. */
   let zoom = 0;
+  /** Our rounds, predicted; the relay corrects them with `ammo`. */
+  let ammo: Ammo = spawnAmmo();
+  /** Weapon being reloaded (index), or NO_RELOAD. */
+  let reloadWeapon = NO_RELOAD;
+  let reloadDoneAt = 0;
+  let lastEmptyClickAt = -Infinity;
   let shotId = 0;
   let hazardDamage = 0;
   let fellThisLife = false;
@@ -231,6 +243,8 @@ export const createArenaEngine = ({
     }
     const me = message.players.find((player) => player.id === message.you);
     combat = createCombatState(now);
+    ammo = spawnAmmo();
+    reloadWeapon = NO_RELOAD;
     if (me) {
       placeBody(me.p, me.y);
       combat = { ...combat, health: me.hp, alive: me.alive };
@@ -244,6 +258,7 @@ export const createArenaEngine = ({
   const handleKill = (by: string, to: string, weapon: number, zone: number, now: number) => {
     pushFeed(by, to, weapon, zone, now);
     if (to === myId) {
+      reloadWeapon = NO_RELOAD;
       combat = {
         ...combat,
         health: 0,
@@ -270,6 +285,21 @@ export const createArenaEngine = ({
     // Where a remote shot met a wall, it leaves sparks and a mark there too.
     if (distance < REMOTE_TRACER_RANGE) effects.spark(pointAlong(from, dir, distance), false, now);
     play(SOUND_BY_WEAPON[remoteWeapon], volumeAt(from));
+  };
+
+  /** The relay's count of our rounds wins over our prediction. */
+  const applyAmmo = (message: Extract<ServerMessage, { type: 'ammo' }>) => {
+    const fromRelay = ammoFromLines(message.a);
+    if (message.why === AMMO_UPDATE.PICKUP) {
+      // Shots may still be on their way: only the reserves changed.
+      ammo = ammo.map((rounds, i) => ({
+        ...rounds, reserve: fromRelay[i]?.reserve ?? rounds.reserve,
+      }));
+      return;
+    }
+    ammo = fromRelay;
+    // A refused shot (sync) leaves a reload of ours running; anything else ends it.
+    if (message.why !== AMMO_UPDATE.SYNC) reloadWeapon = NO_RELOAD;
   };
 
   /** Every relay message lands here as it arrives, also while the tab is in the background. */
@@ -304,6 +334,8 @@ export const createArenaEngine = ({
         if (message.id !== myId) return;
         placeBody(message.p, message.y);
         combat = respawn(combat, now);
+        ammo = spawnAmmo();
+        reloadWeapon = NO_RELOAD;
         play('respawn');
         return;
       case SERVER_MESSAGE.SCORES:
@@ -316,6 +348,9 @@ export const createArenaEngine = ({
         return;
       case SERVER_MESSAGE.LEAVE:
         snapshots.remove(message.id);
+        return;
+      case SERVER_MESSAGE.AMMO:
+        applyAmmo(message);
         return;
       default:
     }
@@ -383,8 +418,27 @@ export const createArenaEngine = ({
   const switchWeapon = (next: WeaponId, now: number) => {
     if (next === weapon) return;
     weapon = next;
+    reloadWeapon = NO_RELOAD;
     weaponReadyAt = now + VIEW_MODEL.switchMs;
     viewModel.setWeapon(weapon, now);
+  };
+
+  /** Starts reloading the weapon in hand, if it can; the relay times it too. */
+  const startReload = (now: number) => {
+    const index = weaponIndex(weapon);
+    if (reloadWeapon !== NO_RELOAD || now < weaponReadyAt || !canReload(ammo, index)) return;
+    const { reloadMs } = WEAPONS[weapon].ammo;
+    reloadWeapon = index;
+    reloadDoneAt = now + reloadMs;
+    viewModel.reload(now, reloadMs);
+    send({ type: 'reload', w: index });
+    play('reload');
+  };
+
+  const updateReload = (now: number) => {
+    if (reloadWeapon === NO_RELOAD || now < reloadDoneAt) return;
+    ammo = reloaded(ammo, reloadWeapon);
+    reloadWeapon = NO_RELOAD;
   };
 
   /** The level hurts us here; the relay applies it (a batch at a time, to spare messages). */
@@ -414,11 +468,18 @@ export const createArenaEngine = ({
     level.pickups.forEach((pickup, i) => {
       const available = now >= pickupAvailableAt[i];
       builtLevel.setPickupAvailable(i, available);
-      if (!available || !canHeal(combat)) return;
+      const useful = pickup.kind === 'ammo' ? canTakeAmmoBox(ammo) : canHeal(combat);
+      if (!available || !useful) return;
       const near = distanceXZ(pickup.position, body.position) < PICKUP_RADIUS
         && Math.abs(body.position[1] - pickup.position[1]) < PICKUP_REACH_HEIGHT;
       if (!near) return;
       pickupAvailableAt[i] = now + PICKUP_RESPAWN_MS;
+      if (pickup.kind === 'ammo') {
+        // The relay checks we are by the box and answers with our new reserves.
+        send({ type: 'pickup', i });
+        play('ammo');
+        return;
+      }
       send({
         type: 'env', kind: ENV_KIND.HEAL, amount: pickup.heal, cause: 'kit',
       });
@@ -484,7 +545,19 @@ export const createArenaEngine = ({
    */
   const fire = (targets: ShotTarget[], now: number) => {
     const definition = WEAPONS[weapon];
-    if (now < weaponReadyAt || !canFire(lastShotAt, now, definition)) return;
+    if (now < weaponReadyAt || reloadWeapon !== NO_RELOAD) return;
+    if (!canFire(lastShotAt, now, definition)) return;
+    const index = weaponIndex(weapon);
+    if (!hasRound(ammo, index)) {
+      if (canReload(ammo, index)) {
+        startReload(now);
+      } else if (now - lastEmptyClickAt >= EMPTY_CLICK_MS) {
+        lastEmptyClickAt = now;
+        play('empty');
+      }
+      return;
+    }
+    ammo = spendRound(ammo, index);
     lastShotAt = now;
     shotId += 1;
     const seed = Math.floor(Math.random() * SEED_RANGE);
@@ -505,7 +578,7 @@ export const createArenaEngine = ({
         o: [...eye],
         y: wrapAngle(yaw),
         x: pitch,
-        w: weaponIndex(weapon),
+        w: index,
         seed,
         ads: scoped,
       });
@@ -524,6 +597,8 @@ export const createArenaEngine = ({
     viewModel.fire(now);
     pitch = Math.min(MAX_PITCH, pitch + definition.recoil);
     play(SOUND_BY_WEAPON[weapon]);
+    // The last round reloads by itself.
+    if (!hasRound(ammo, index)) startReload(now);
   };
 
   const placeCamera = () => {
@@ -571,12 +646,17 @@ export const createArenaEngine = ({
     feed = pruneFeed(feed, now);
     refreshScoreboard();
     const own = myId ? scores.get(myId) : undefined;
+    const index = weaponIndex(weapon);
     hud.setState({
       locked,
       health: combat.health,
       alive: combat.alive,
       weapon,
       scoped: zoom >= SCOPE_LENS_AT,
+      mag: ammo[index]?.mag ?? 0,
+      reserve: ammo[index]?.reserve ?? 0,
+      reloading: reloadWeapon !== NO_RELOAD,
+      lowAmmo: lowOnAmmo(ammo, index),
       kills: own?.kills ?? 0,
       deaths: own?.deaths ?? 0,
       killer: combat.lastKiller,
@@ -605,6 +685,8 @@ export const createArenaEngine = ({
     if (controls.weaponSlot !== null) switchWeapon(weaponAt(controls.weaponSlot), now);
     if (controls.weaponStep) switchWeapon(cycleWeapon(weapon, controls.weaponStep), now);
     updateZoom(controls.aiming && controls.locked, dt, now);
+    if (controls.reload && controls.locked && combat.alive && !spectator) startReload(now);
+    updateReload(now);
     if (controls.toggleMute) {
       muted = !muted;
       audio.setMuted(muted);

@@ -12,6 +12,20 @@ export interface Falloff {
   minFactor: number;
 }
 
+/** Rounds of a weapon: one per shot (a shotgun shell counts once). */
+export interface AmmoDefinition {
+  /** Rounds in a full magazine. */
+  magazine: number;
+  /** Rounds carried besides the magazine when spawning. */
+  startReserve: number;
+  /** Most rounds carried besides the magazine. */
+  maxReserve: number;
+  /** Time to reload, ms; no shooting meanwhile. */
+  reloadMs: number;
+  /** Rounds an ammo box adds to the reserve. */
+  pack: number;
+}
+
 /** An optical sight, looked through while the secondary button is held. */
 export interface Scope {
   /** Field of view fully zoomed in, degrees. */
@@ -41,6 +55,7 @@ export interface WeaponDefinition {
   tracerColor: number;
   /** Null: no scope. */
   scope: Scope | null;
+  ammo: AmmoDefinition;
 }
 
 /** A remote player as a shot sees them. */
@@ -82,5 +97,7 @@ export interface ViewModel {
   /** Bobs with movement and recovers from recoil. */
   update: (dt: number, speed: number, now: number, visible: boolean) => void;
   fire: (now: number) => void;
+  /** Dips and turns the gun for `durationMs` (a reload); switching weapons stops it. */
+  reload: (now: number, durationMs: number) => void;
   dispose: () => void;
 }

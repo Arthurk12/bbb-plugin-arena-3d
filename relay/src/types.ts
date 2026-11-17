@@ -1,4 +1,5 @@
 import { Vec3 } from '../../src/commons/types';
+import { Ammo } from '../../src/game/ammo/types';
 import { CombatState } from '../../src/game/combat/types';
 import { LevelDefinition } from '../../src/game/level/types';
 import { ShotResult } from '../../src/game/weapons/types';
@@ -55,6 +56,14 @@ export interface PlayerState {
   life: number;
   lastPoseAt: number;
   lastShotAt: number;
+  /** Rounds of every weapon. */
+  ammo: Ammo;
+  /** Weapon being reloaded (index), or NO_RELOAD. */
+  reloadWeapon: number;
+  /** When that reload is done, relay time. */
+  reloadDoneAt: number;
+  /** When each of the level's pickups is available again to this player (ammo boxes). */
+  pickupReadyAt: number[];
   /** Changed since the last snapshot. */
   dirty: boolean;
   history: HistoryEntry[];

@@ -1,3 +1,4 @@
+import { ModelPart } from '../models/types';
 import { MaterialId } from './types';
 
 /** Meters covered by one repeat of a texture. */
@@ -20,6 +21,26 @@ export const LIGHTS = {
 };
 
 export const PICKUP_COLOR = 0x3dff7a;
+
+/** Glow of an ammo box. */
+export const AMMO_COLOR = 0xffb02e;
+
+const AMMO_BOX_COLORS = {
+  crate: 0x8a6a2a,
+  band: 0x4d3b1a,
+  stripe: 0xffb02e,
+  round: 0xd9a63a,
+};
+
+/** An ammo box: a crate with a lid band, a stripe and three rounds on top, meters. */
+export const AMMO_BOX_PARTS: ModelPart[] = [
+  { size: [0.5, 0.3, 0.34], at: [0, 0, 0], color: AMMO_BOX_COLORS.crate },
+  { size: [0.52, 0.06, 0.36], at: [0, 0.1, 0], color: AMMO_BOX_COLORS.band },
+  { size: [0.2, 0.04, 0.36], at: [0, -0.06, 0], color: AMMO_BOX_COLORS.stripe },
+  { size: [0.06, 0.14, 0.06], at: [-0.12, 0.22, 0], color: AMMO_BOX_COLORS.round },
+  { size: [0.06, 0.14, 0.06], at: [0, 0.22, 0], color: AMMO_BOX_COLORS.round },
+  { size: [0.06, 0.14, 0.06], at: [0.12, 0.22, 0], color: AMMO_BOX_COLORS.round },
+];
 
 /** Materials drawn with a plain glowing color instead of a texture. */
 export const GLOW_COLORS: Partial<Record<MaterialId, number>> = {

@@ -1,4 +1,4 @@
-import { DEFAULT_WEAPON } from '../weapons/constants';
+import { DEFAULT_WEAPON, WEAPONS } from '../weapons/constants';
 import { MAX_HEALTH } from '../../net/constants';
 import { HitZone } from '../hitbox/types';
 import { FEED_SIZE, FEED_TTL_MS } from './constants';
@@ -12,6 +12,10 @@ export const initialHudState = (): HudState => ({
   alive: true,
   weapon: DEFAULT_WEAPON,
   scoped: false,
+  mag: WEAPONS[DEFAULT_WEAPON].ammo.magazine,
+  reserve: WEAPONS[DEFAULT_WEAPON].ammo.startReserve,
+  reloading: false,
+  lowAmmo: false,
   kills: 0,
   deaths: 0,
   killer: '',

@@ -24,6 +24,10 @@ function Hud({ hud, session, onPlay }: HudProps) {
   const fallback = intl.formatMessage(mainMessages.unknownPlayer);
   const name = (userId: string) => nameOf(userId, users, fallback);
   const color = (userId: string) => users[userId]?.color ?? HUD_COLORS.text;
+  const outOfAmmo = state.mag + state.reserve === 0;
+  let ammoText = `${state.mag} / ${state.reserve}`;
+  if (state.reloading) ammoText = intl.formatMessage(intlMessages.reloading);
+  else if (outOfAmmo) ammoText = intl.formatMessage(intlMessages.noAmmo);
 
   if (state.webglError) {
     return (
@@ -106,8 +110,9 @@ function Hud({ hud, session, onPlay }: HudProps) {
         <Styled.Label>{intl.formatMessage(intlMessages.health)}</Styled.Label>
         <Styled.BigNumber $danger={state.health <= LOW_HEALTH}>{state.health}</Styled.BigNumber>
       </Styled.Corner>
-      <Styled.Corner $right>
+      <Styled.Corner $right data-test={DATA_TEST.HUD_AMMO}>
         <Styled.BigNumber>{intl.formatMessage(intlMessages[state.weapon])}</Styled.BigNumber>
+        <Styled.Ammo $low={state.lowAmmo || outOfAmmo}>{ammoText}</Styled.Ammo>
       </Styled.Corner>
       {state.muted ? <Styled.Muted>{intl.formatMessage(intlMessages.muted)}</Styled.Muted> : null}
 

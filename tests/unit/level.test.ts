@@ -42,6 +42,13 @@ describe('ARENA_LEVEL', () => {
     });
   });
 
+  it('has both health kits and ammo boxes', () => {
+    const count = (kind: string) => ARENA_LEVEL.pickups.filter((p) => p.kind === kind).length;
+    expect(count('health')).toBeGreaterThan(0);
+    expect(count('ammo')).toBeGreaterThan(0);
+    expect(count('health') + count('ammo')).toBe(ARENA_LEVEL.pickups.length);
+  });
+
   it('jump pads land you on the ledge they face', () => {
     ARENA_LEVEL.pads.forEach((pad) => {
       const center: Vec3 = [(pad.min[0] + pad.max[0]) / 2, pad.max[1], 0];

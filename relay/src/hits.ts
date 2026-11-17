@@ -1,4 +1,6 @@
 import { seededRandom } from '../../src/commons/random';
+import { NO_RELOAD } from '../../src/game/ammo/constants';
+import { hasRound } from '../../src/game/ammo/service';
 import { createHitbox, writeHitbox } from '../../src/game/hitbox/service';
 import { PLAYER } from '../../src/game/player/constants';
 import { WEAPON_IDS, WEAPONS } from '../../src/game/weapons/constants';
@@ -38,6 +40,12 @@ export const evaluateShot = (shot: ShotMessage, ctx: ShotContext): ShotVerdict =
   }
   if (shot.w >= WEAPON_IDS.length) {
     return { ok: false, reason: 'weapon' };
+  }
+  if (shooter.reloadWeapon !== NO_RELOAD) {
+    return { ok: false, reason: 'reloading' };
+  }
+  if (!hasRound(shooter.ammo, shot.w)) {
+    return { ok: false, reason: 'ammo' };
   }
   const weapon = WEAPONS[weaponAt(shot.w)];
   if (ctx.now - shooter.lastShotAt < weapon.cooldownMs * SHOT_COOLDOWN_TOLERANCE) {

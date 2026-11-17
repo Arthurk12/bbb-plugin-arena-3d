@@ -17,6 +17,7 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
     recoil: 0.012,
     tracerColor: 0xffd34d,
     scope: null,
+    ammo: { magazine: 12, startReserve: 36, maxReserve: 72, reloadMs: 1100, pack: 24 },
   },
   shotgun: {
     id: 'shotgun',
@@ -32,6 +33,7 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
     recoil: 0.05,
     tracerColor: 0xff8a3d,
     scope: null,
+    ammo: { magazine: 6, startReserve: 12, maxReserve: 24, reloadMs: 1800, pack: 8 },
   },
   smg: {
     id: 'smg',
@@ -47,6 +49,7 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
     recoil: 0.006,
     tracerColor: 0x9dff5c,
     scope: null,
+    ammo: { magazine: 30, startReserve: 60, maxReserve: 150, reloadMs: 1600, pack: 60 },
   },
   sniper: {
     id: 'sniper',
@@ -62,6 +65,7 @@ export const WEAPONS: Record<WeaponId, WeaponDefinition> = {
     recoil: 0.06,
     tracerColor: 0x7fd4ff,
     scope: { fov: 20, spread: 0, zoomMs: 150 },
+    ammo: { magazine: 5, startReserve: 5, maxReserve: 15, reloadMs: 2200, pack: 5 },
   },
 };
 
@@ -86,6 +90,10 @@ export const VIEW_MODEL = {
   swayAmplitude: 0.006, // meters
   /** Height of the figure eight relative to its width. */
   swayHeight: 0.5,
+  /** Halfway through a reload the gun dips (meters), tips down and rolls (radians). */
+  reloadDrop: 0.1,
+  reloadTilt: 0.35,
+  reloadRoll: 0.6,
   flashColor: 0xfff1a8,
 };
 

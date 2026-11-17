@@ -5,6 +5,9 @@ export const MAX_HEALTH = 100;
 
 export const MAX_WEAPON_INDEX = 7;
 
+/** Highest pickup index a client may name. */
+export const MAX_PICKUP_INDEX = 63;
+
 export const MAX_USER_ID_LENGTH = 128;
 
 /** Integers above this would overflow a Java int downstream; counters stay below it. */

@@ -37,6 +37,12 @@ export interface HudState {
   weapon: WeaponId;
   /** Looking through a scope: its lens fills the screen. */
   scoped: boolean;
+  /** Rounds of the weapon in hand: in the magazine and in reserve. */
+  mag: number;
+  reserve: number;
+  reloading: boolean;
+  /** The magazine is nearly empty. */
+  lowAmmo: boolean;
   kills: number;
   deaths: number;
   /** Who caused our last death; equals our id for a suicide. */

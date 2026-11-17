@@ -61,12 +61,12 @@ describe('buildLevel', () => {
     expect(kitY()).not.toBe(kitBefore);
   });
 
-  it('draws every health kit in one instanced mesh', () => {
+  it('draws the health kits and the ammo boxes in one instanced mesh each', () => {
     const built = buildLevel(ARENA_LEVEL);
-    const kits = built.group.children
+    const pickupMeshes = built.group.children
       .filter((child): child is THREE.InstancedMesh => child instanceof THREE.InstancedMesh);
-    expect(kits).toHaveLength(1);
-    expect(kits[0].count).toBe(ARENA_LEVEL.pickups.length);
+    const count = (kind: string) => ARENA_LEVEL.pickups.filter((p) => p.kind === kind).length;
+    expect(pickupMeshes.map((mesh) => mesh.count)).toEqual([count('health'), count('ammo')]);
   });
 
   it('hides a taken kit and its glow until it is available again', () => {

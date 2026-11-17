@@ -32,5 +32,6 @@ export const DATA_TEST = {
   ARENA_PLAY_OVERLAY: 'arena3dPlayOverlay',
   HUD_HEALTH: 'arena3dHudHealth',
   HUD_SCORE: 'arena3dHudScore',
+  HUD_AMMO: 'arena3dHudAmmo',
   SCOREBOARD: 'arena3dScoreboard',
 } as const;

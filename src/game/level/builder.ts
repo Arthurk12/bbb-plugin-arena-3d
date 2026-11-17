@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { modelGeometry } from '../models/service';
 import {
-  AMBIENT_OCCLUSION, GLOW_COLORS, LEVEL_ANIMATION, PICKUP_COLOR, PICKUP_GLOW, SLIME_OPACITY,
-  TEXTURE_WORLD_SIZE,
+  AMBIENT_OCCLUSION, AMMO_BOX_PARTS, AMMO_COLOR, GLOW_COLORS, LEVEL_ANIMATION, PICKUP_COLOR,
+  PICKUP_GLOW, SLIME_OPACITY, TEXTURE_WORLD_SIZE,
 } from './constants';
 import { createSky } from './sky';
 import { createLevelTextures } from './textures';
 import {
-  BuiltLevel, LevelBlock, LevelDefinition, MaterialId,
+  BuiltLevel, LevelBlock, LevelDefinition, MaterialId, PickupDefinition,
 } from './types';
 
 const PICKUP_SIZE = 0.5;
@@ -134,25 +135,43 @@ export const buildLevel = (level: LevelDefinition): BuiltLevel => {
     group.add(new THREE.Mesh(merged, built));
   });
 
-  // Every health kit in one instanced mesh, and their glows in one point cloud: two draw calls.
+  // Health kits and ammo boxes: one instanced mesh per kind, and every glow in one point cloud.
   const pickupBaseY = level.pickups.map((pickup) => pickup.position[1] + PICKUP_FLOAT_HEIGHT);
-  const pickupMesh = new THREE.InstancedMesh(
+  const ofKind = (kind: PickupDefinition['kind']) => level.pickups
+    .filter((pickup) => pickup.kind === kind).length;
+  const kitMesh = new THREE.InstancedMesh(
     createPickupGeometry(),
     new THREE.MeshBasicMaterial({ color: PICKUP_COLOR }),
-    level.pickups.length,
+    ofKind('health'),
   );
-  pickupMesh.frustumCulled = false;
-  pickupMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  group.add(pickupMesh);
+  const boxMesh = new THREE.InstancedMesh(
+    modelGeometry(AMMO_BOX_PARTS),
+    new THREE.MeshBasicMaterial({ vertexColors: true }),
+    ofKind('ammo'),
+  );
+  [kitMesh, boxMesh].forEach((mesh) => {
+    // eslint-disable-next-line no-param-reassign
+    mesh.frustumCulled = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    group.add(mesh);
+  });
+  /** Each pickup's mesh and its slot there. */
+  const slots = level.pickups.map((pickup, i) => ({
+    mesh: pickup.kind === 'health' ? kitMesh : boxMesh,
+    slot: level.pickups.slice(0, i).filter((other) => other.kind === pickup.kind).length,
+  }));
   const pickupOn = level.pickups.map(() => true);
   const pickupMatrix = new THREE.Matrix4();
 
   const glowPositions = new Float32Array(level.pickups.length * 3);
   const glowColors = new Float32Array(level.pickups.length * 3);
-  const glowColor = new THREE.Color(PICKUP_COLOR);
+  const glowColorsBase = level.pickups.map((pickup) => new THREE.Color(
+    pickup.kind === 'health' ? PICKUP_COLOR : AMMO_COLOR,
+  ));
   level.pickups.forEach((pickup, i) => {
+    const color = glowColorsBase[i];
     glowPositions.set([pickup.position[0], pickupBaseY[i], pickup.position[2]], i * 3);
-    glowColors.set([glowColor.r, glowColor.g, glowColor.b], i * 3);
+    glowColors.set([color.r, color.g, color.b], i * 3);
   });
   const glowGeometry = new THREE.BufferGeometry();
   const glowPositionAttribute = new THREE.BufferAttribute(glowPositions, 3);
@@ -198,19 +217,21 @@ export const buildLevel = (level: LevelDefinition): BuiltLevel => {
       } else {
         pickupMatrix.makeScale(0, 0, 0);
       }
-      pickupMesh.setMatrixAt(i, pickupMatrix);
+      slots[i].mesh.setMatrixAt(slots[i].slot, pickupMatrix);
       glowPositions[i * 3 + 1] = pickupBaseY[i] + bob;
     });
-    pickupMesh.instanceMatrix.needsUpdate = true;
+    kitMesh.instanceMatrix.needsUpdate = true;
+    boxMesh.instanceMatrix.needsUpdate = true;
     glowPositionAttribute.needsUpdate = true;
   };
 
-  /** A taken kit disappears with its glow until it respawns. */
+  /** A taken pickup disappears with its glow until it respawns. */
   const setPickupAvailable = (index: number, on: boolean) => {
     if (pickupOn[index] === on) return;
     pickupOn[index] = on;
     const scale = on ? 1 : 0;
-    glowColors.set([glowColor.r * scale, glowColor.g * scale, glowColor.b * scale], index * 3);
+    const color = glowColorsBase[index];
+    glowColors.set([color.r * scale, color.g * scale, color.b * scale], index * 3);
     glowColorAttribute.needsUpdate = true;
   };
 

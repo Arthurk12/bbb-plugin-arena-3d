@@ -1,5 +1,5 @@
 import { Vec3 } from '../commons/types';
-import { CLIENT_MESSAGE, ENV_KIND, SERVER_MESSAGE } from './constants';
+import { AMMO_UPDATE, CLIENT_MESSAGE, ENV_KIND, SERVER_MESSAGE } from './constants';
 
 // ---- client → relay ----
 
@@ -56,7 +56,20 @@ export interface PingMessage {
   c: number;
 }
 
-export type ClientMessage = HelloMessage | PoseMessage | ShotMessage | EnvMessage | PingMessage;
+export interface ReloadMessage {
+  type: typeof CLIENT_MESSAGE.RELOAD;
+  /** Weapon index. */
+  w: number;
+}
+
+export interface PickupMessage {
+  type: typeof CLIENT_MESSAGE.PICKUP;
+  /** Index in the level's pickups (an ammo box). */
+  i: number;
+}
+
+export type ClientMessage = HelloMessage | PoseMessage | ShotMessage | EnvMessage | PingMessage
+  | ReloadMessage | PickupMessage;
 
 // ---- relay → client ----
 
@@ -168,7 +181,8 @@ export interface PongMessage {
   s: number;
 }
 
-export type RejectReason = 'dead' | 'spectator' | 'cooldown' | 'origin' | 'weapon';
+export type RejectReason = 'dead' | 'spectator' | 'cooldown' | 'origin' | 'weapon' | 'ammo'
+  | 'reloading';
 
 export interface RejectMessage {
   type: typeof SERVER_MESSAGE.REJECT;
@@ -176,5 +190,19 @@ export interface RejectMessage {
   reason: RejectReason;
 }
 
+/** [rounds in the magazine, rounds in reserve] */
+export type AmmoLine = [number, number];
+
+export type AmmoUpdate = typeof AMMO_UPDATE[keyof typeof AMMO_UPDATE];
+
+/** A player's own ammo; sent to them only. */
+export interface AmmoMessage {
+  type: typeof SERVER_MESSAGE.AMMO;
+  why: AmmoUpdate;
+  /** Every weapon, in WEAPON_IDS order. */
+  a: AmmoLine[];
+}
+
 export type ServerMessage = WelcomeMessage | SnapshotMessage | ShotEvent | HitEvent | HealthEvent
-  | KillEvent | SpawnEvent | ScoresMessage | JoinEvent | LeaveEvent | PongMessage | RejectMessage;
+  | KillEvent | SpawnEvent | ScoresMessage | JoinEvent | LeaveEvent | PongMessage | RejectMessage
+  | AmmoMessage;

@@ -100,6 +100,17 @@ const recipes = (noiseBuffer: AudioBuffer): Record<SoundId, Recipe> => ({
     tone(ctx, out, at + 0.08, 'triangle', 990, 990, 0.12, 0.5);
   },
   respawn: (ctx, out, at) => tone(ctx, out, at, 'triangle', 200, 800, 0.3, 0.4),
+  empty: (ctx, out, at) => tone(ctx, out, at, 'square', 1300, 1100, 0.03, 0.25),
+  reload: (ctx, out, at) => {
+    noise(ctx, out, at, noiseBuffer, 2500, 0.05, 0.4);
+    tone(ctx, out, at + 0.2, 'square', 700, 500, 0.05, 0.3);
+    noise(ctx, out, at + 0.35, noiseBuffer, 3500, 0.04, 0.4);
+  },
+  ammo: (ctx, out, at) => {
+    tone(ctx, out, at, 'triangle', 440, 440, 0.07, 0.45);
+    tone(ctx, out, at + 0.07, 'triangle', 660, 660, 0.07, 0.45);
+    noise(ctx, out, at + 0.07, noiseBuffer, 3000, 0.05, 0.25);
+  },
 });
 
 export const createArenaAudio = (): ArenaAudio => {

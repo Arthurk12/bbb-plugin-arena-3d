@@ -47,3 +47,6 @@ export const POSE_PRECISION = 100;
 
 /** A socket that went over its rate is out of trouble only once half its bucket refilled. */
 export const RATE_RECOVERY_SHARE = 0.5;
+
+/** Extra reach when a player takes an ammo box: the relay's view of them lags a little. */
+export const PICKUP_SLACK = 1; // meters

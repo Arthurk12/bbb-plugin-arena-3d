@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Vec3 } from '../../src/commons/types';
+import { ammoLines, spawnAmmo, withAmmoBox } from '../../src/game/ammo/service';
 import { RESPAWN_DELAY_MS, SPAWN_PROTECTION_MS } from '../../src/game/combat/constants';
 import { ARENA_LEVEL } from '../../src/game/level/layout';
 import { LevelBlock, LevelDefinition } from '../../src/game/level/types';
 import { PLAYER } from '../../src/game/player/constants';
-import { WEAPON_IDS } from '../../src/game/weapons/constants';
+import { WEAPON_IDS, WEAPONS } from '../../src/game/weapons/constants';
 import {
   CLIENT_MESSAGE, CLOSE_CODES, ENV_KIND, ENVIRONMENT_WEAPON, ENVIRONMENT_ZONE, SERVER_MESSAGE,
   SNAPSHOT_FLAGS,
@@ -28,6 +29,8 @@ const ORIGIN: Vec3 = [0, PLAYER.eyeHeight, 10];
 /** Aims at 1 m above the feet of a player 5 m away: the body, not the head. */
 const BODY_PITCH = Math.atan2(1.0 - PLAYER.eyeHeight, 5);
 const TICK_MS = 50;
+/** Straight up: a shot that hits nobody. */
+const SKY = 1.4;
 
 const fakeClient = (userId: string) => {
   const sent: ServerMessage[] = [];
@@ -351,5 +354,85 @@ describe('createRoom', () => {
     time.now = 10_123;
     room.handle('u1', { type: CLIENT_MESSAGE.PING, c: 5 });
     expect(messagesOf(u1.sent, 'pong')).toEqual([{ type: SERVER_MESSAGE.PONG, c: 5, s: 10_123 }]);
+  });
+
+  describe('ammo', () => {
+    const SNIPER = WEAPON_IDS.indexOf('sniper');
+    const sniperShot = (s: ReturnType<typeof start>, id: number) => shotWith({
+      id, vt: s.time.now - 100, x: SKY, w: SNIPER,
+    });
+    const ammoOf = (sent: ServerMessage[], why: string) => messagesOf(sent, 'ammo')
+      .filter((m) => m.why === why);
+
+    it('sends each player their ammo after the welcome', () => {
+      const s = start();
+      expect(ammoOf(s.u1.sent, 'spawn')).toEqual([
+        { type: 'ammo', why: 'spawn', a: ammoLines(spawnAmmo()) },
+      ]);
+    });
+
+    it('refuses a shot with an empty magazine and sends the ammo back', () => {
+      const s = start();
+      const { magazine, startReserve } = WEAPONS.sniper.ammo;
+      for (let i = 1; i <= magazine + 1; i += 1) {
+        if (i > 1) s.tickFor(WEAPONS.sniper.cooldownMs);
+        s.room.handle('u1', sniperShot(s, i));
+      }
+      expect(messagesOf(s.u1.sent, 'reject')).toEqual([
+        { type: 'reject', id: magazine + 1, reason: 'ammo' },
+      ]);
+      expect(ammoOf(s.u1.sent, 'sync')[0].a[SNIPER]).toEqual([0, startReserve]);
+    });
+
+    it('reloads after the reload time, refusing shots meanwhile', () => {
+      const s = start();
+      const { magazine, reloadMs, startReserve } = WEAPONS.sniper.ammo;
+      s.room.handle('u1', sniperShot(s, 1));
+      s.room.handle('u1', { type: CLIENT_MESSAGE.RELOAD, w: SNIPER });
+      s.tickFor(WEAPONS.sniper.cooldownMs);
+      s.room.handle('u1', sniperShot(s, 2));
+      expect(messagesOf(s.u1.sent, 'reject')).toEqual([
+        { type: 'reject', id: 2, reason: 'reloading' },
+      ]);
+
+      s.tickFor(reloadMs);
+      expect(ammoOf(s.u1.sent, 'reload')[0].a[SNIPER]).toEqual([magazine, startReserve - 1]);
+      s.room.handle('u1', sniperShot(s, 3));
+      expect(messagesOf(s.u1.sent, 'reject')).toHaveLength(1);
+    });
+
+    it('drops a reload when the player switches weapons', () => {
+      const s = start();
+      s.room.handle('u1', { ...poseTo([0, 0, 10]), w: SNIPER });
+      s.room.handle('u1', sniperShot(s, 1));
+      s.room.handle('u1', { type: CLIENT_MESSAGE.RELOAD, w: SNIPER });
+      s.room.handle('u1', poseTo([0, 0, 10]));
+      s.tickFor(WEAPONS.sniper.ammo.reloadMs + 100);
+      expect(ammoOf(s.u1.sent, 'reload')).toEqual([]);
+    });
+
+    it('gives an ammo box only to a player by it, then not until it is back', () => {
+      const pickups: LevelDefinition['pickups'] = [
+        { kind: 'ammo', position: [0, 0, 10] },
+        { kind: 'ammo', position: [20, 0, 20] },
+      ];
+      const s = start({ level: { ...TEST_LEVEL, pickups } });
+      s.room.handle('u1', { type: CLIENT_MESSAGE.PICKUP, i: 1 });
+      expect(ammoOf(s.u1.sent, 'pickup')).toEqual([]);
+
+      s.room.handle('u1', { type: CLIENT_MESSAGE.PICKUP, i: 0 });
+      expect(ammoOf(s.u1.sent, 'pickup')).toEqual([
+        { type: 'ammo', why: 'pickup', a: ammoLines(withAmmoBox(spawnAmmo())) },
+      ]);
+      s.room.handle('u1', { type: CLIENT_MESSAGE.PICKUP, i: 0 });
+      expect(ammoOf(s.u1.sent, 'pickup')).toHaveLength(1);
+    });
+
+    it('refills a player who respawns', () => {
+      const s = start();
+      killU2(s);
+      s.tickFor(RESPAWN_DELAY_MS + TICK_MS);
+      expect(ammoOf(s.u2.sent, 'spawn')).toHaveLength(2);
+    });
   });
 });

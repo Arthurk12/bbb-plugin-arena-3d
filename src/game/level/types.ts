@@ -20,10 +20,20 @@ export interface Hazard extends Aabb {
   damagePerSecond: number;
 }
 
-export interface PickupDefinition {
+export interface HealthKitDefinition {
+  kind: 'health';
   position: Vec3;
+  /** Health it gives. */
   heal: number;
 }
+
+/** Tops up every weapon's reserve by its `ammo.pack`. */
+export interface AmmoBoxDefinition {
+  kind: 'ammo';
+  position: Vec3;
+}
+
+export type PickupDefinition = HealthKitDefinition | AmmoBoxDefinition;
 
 export interface SpawnPoint {
   position: Vec3;
@@ -70,8 +80,8 @@ export interface Sky {
 /** The level's meshes, ready to add to a scene. */
 export interface BuiltLevel {
   group: Group;
-  /** Per-frame animation (sky, neon, pads, slime, health kits); allocates nothing. */
+  /** Per-frame animation (sky, neon, pads, slime, pickups); allocates nothing. */
   animate: (now: number, viewer: Vector3) => void;
-  /** Shows or hides a health kit and its glow (index in `LevelDefinition.pickups`). */
+  /** Shows or hides a health kit or ammo box and its glow (index in `LevelDefinition.pickups`). */
   setPickupAvailable: (index: number, on: boolean) => void;
 }

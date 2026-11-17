@@ -76,4 +76,17 @@ describe('createViewModel', () => {
     expect(flash.visible).toBe(false);
     view.dispose();
   });
+
+  it('dips the gun through a reload and brings it back', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const view = createViewModel(camera);
+    const [root] = camera.children;
+    view.reload(1000, 1000);
+    view.update(0.016, 0, 1500, true);
+    expect(root.position.y).toBeLessThan(VIEW_MODEL.rest[1] - VIEW_MODEL.reloadDrop * 0.9);
+    expect(root.rotation.z).toBeCloseTo(VIEW_MODEL.reloadRoll);
+    view.update(0.016, 0, 2001, true);
+    expect(root.rotation.z).toBe(0);
+    view.dispose();
+  });
 });
