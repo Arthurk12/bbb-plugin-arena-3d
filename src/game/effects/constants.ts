@@ -1,12 +1,37 @@
-export const TRACER_LIFETIME_MS = 90;
+/** Tracers: thin glowing beams, pooled; the oldest is reused when all are busy. */
+export const TRACERS = {
+  capacity: 48,
+  lifetimeMs: 110,
+  thickness: 0.035, // meters
+};
 
-export const SPARK_LIFETIME_MS = 220;
+/** Impact particles: a small burst per hit, pooled, falling under gravity. */
+export const PARTICLES = {
+  capacity: 192,
+  perImpact: 6,
+  speed: 3.5, // m/s
+  gravity: 9, // m/s²
+  lifetimeMs: 320,
+  size: 0.12, // meters
+  textureSize: 32,
+};
 
-export const SPARK_SIZE = 0.18; // meters
+/** Bullet marks on walls, pooled: they fade out by shrinking at the end of their life. */
+export const DECALS = {
+  capacity: 48,
+  size: 0.16, // meters
+  lifetimeMs: 12000,
+  fadeMs: 2000,
+  /** Off the wall, so the mark never flickers into it. */
+  offset: 0.01, // meters
+  opacity: 0.65,
+  /** How close to a block's face an impact must be to leave a mark there. */
+  surfaceTolerance: 0.03, // meters
+};
 
 export const SPARK_COLORS = {
-  wall: 0xffe08a,
-  player: 0xff2a2a,
+  wall: 0xffd27a,
+  player: 0xff3030,
 };
 
 /** Tracers start this far ahead of the eye, roughly at the gun. */
