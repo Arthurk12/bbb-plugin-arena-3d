@@ -1,6 +1,6 @@
 import { hashString } from '../../commons/utils';
 import { Aabb } from '../geometry/types';
-import { Pose } from '../../net/types';
+import { Pose } from '../../commons/types';
 import { HITBOX } from './constants';
 
 const HUE_STEPS = 360;

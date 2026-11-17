@@ -1,12 +1,16 @@
 import * as THREE from 'three';
-import { Vec3 } from '../../commons/types';
+import { Pose, Vec3 } from '../../commons/types';
 import { clamp } from '../../commons/utils';
 import { DATA_TEST } from '../../commons/constants';
-import { computeScores, recentHits, toWireHits } from '../../net/service';
-import { LocalHit, PlayerPayload, Pose } from '../../net/types';
+import { seededRandom } from '../../commons/random';
+import { MAX_HEALTH } from '../../net/constants';
+import { ENV_KIND, RELAY_TIMING, SERVER_MESSAGE } from '../../protocol/constants';
+import { PlayerInfo, ServerMessage, SnapshotEntry } from '../../protocol/types';
+import { createRelayConnection } from '../../relay-client/connection';
+import { createSnapshotStore } from '../../relay-client/snapshots';
+import { RelayConnection } from '../../relay-client/types';
 import {
-  canHeal, createCombatState, heal, resetForRound, respawn, respawnDue, respawnInSeconds,
-  restoreScore, takeDamage,
+  canHeal, createCombatState, respawn, respawnInSeconds,
 } from '../combat/service';
 import { PICKUP_RADIUS, PICKUP_RESPAWN_MS } from '../combat/constants';
 import { CombatState } from '../combat/types';
@@ -20,8 +24,9 @@ import {
 import {
   appendFeed, pruneFeed, sameRows, scoreboardRows,
 } from '../hud/service';
-import { SCOREBOARD_REFRESH_MS } from '../hud/constants';
-import { FeedItem, HitMarker, ScoreRow } from '../hud/types';
+import {
+  ConnectionState, FeedItem, HitMarker, Score, ScoreRow,
+} from '../hud/types';
 import { createInputController } from '../input/controller';
 import { MAX_PITCH, MOUSE_SENSITIVITY } from '../input/constants';
 import { buildLevel } from '../level/builder';
@@ -41,8 +46,8 @@ import {
 import { ShotTarget, WeaponId } from '../weapons/types';
 import { createViewModel } from '../weapons/view-model';
 import {
-  CAMERA, LETHAL_DAMAGE, MAX_FRAME_DT, MAX_TRACERS_PER_SHOT, PICKUP_REACH_HEIGHT, PICKUP_SPIN,
-  SPEED_SMOOTHING,
+  CAMERA, ENV_DAMAGE_BATCH, MAX_FRAME_DT, MAX_TRACERS_PER_SHOT, PICKUP_REACH_HEIGHT, PICKUP_SPIN,
+  POSE_SEND, SPEED_SMOOTHING,
 } from './constants';
 import { ArenaEngine, EngineOptions } from './types';
 
@@ -54,9 +59,19 @@ interface RemoteEntry {
   target: ShotTarget;
 }
 
+interface SentPose {
+  p: Vec3;
+  y: number;
+  x: number;
+  w: number;
+}
+
 const IDLE_ENGINE: ArenaEngine = { requestPlay: () => {}, dispose: () => {} };
 
 const SOUND_BY_WEAPON: Record<WeaponId, SoundId> = { blaster: 'blaster', shotgun: 'shotgun' };
+
+/** Seeds are 32-bit unsigned (see `seededRandom`). */
+const SEED_RANGE = 2 ** 32;
 
 const createRenderer = (): THREE.WebGLRenderer => new THREE.WebGLRenderer({
   antialias: false, powerPreference: 'high-performance',
@@ -74,12 +89,26 @@ const disposeScene = (scene: THREE.Scene) => {
   });
 };
 
+const wrapAngle = (angle: number): number => {
+  const twoPi = Math.PI * 2;
+  return angle - twoPi * Math.floor((angle + Math.PI) / twoPi);
+};
+
+const round2 = (n: number): number => Math.round(n * POSE_SEND.precision) / POSE_SEND.precision;
+
+const snapshotEntryOf = (player: PlayerInfo): SnapshotEntry => [
+  player.id, player.p[0], player.p[1], player.p[2], player.y, player.x, player.w,
+  // Same bits as SNAPSHOT_FLAGS (alive = 1, in the arena = 2).
+  (player.alive ? 1 : 0) | (player.on ? 2 : 0),
+];
+
 /**
- * The game: one three.js scene and one animation loop, entirely outside React. It reads the
- * meeting through `getContext` and the net, and reports to React only through the HUD store.
+ * The game: one three.js scene and one animation loop, entirely outside React. The relay is the
+ * judge of hits, health, deaths and scores; this side moves the local player, predicts tracers,
+ * and draws everyone else 100 ms behind the relay's clock.
  */
 export const createArenaEngine = ({
-  container, net, hud, getContext, onWebglError,
+  container, hud, getContext, onWebglError, onConnectionStatus,
 }: EngineOptions): ArenaEngine => {
   let renderer: THREE.WebGLRenderer;
   try {
@@ -121,6 +150,7 @@ export const createArenaEngine = ({
   const effects = createEffects(scene);
   const audio = createArenaAudio();
   const input = createInputController(canvas);
+  const snapshots = createSnapshotStore();
 
   const body: PlayerBody = { position: [0, 0, 0], velocity: [0, 0, 0], grounded: false };
   let yaw = 0;
@@ -128,22 +158,29 @@ export const createArenaEngine = ({
   let combat: CombatState = createCombatState(performance.now());
   let weapon: WeaponId = 'blaster';
   let lastShotAt = -Infinity;
-  let shots = 0;
-  let hitSeq = 0;
-  let localHits: LocalHit[] = [];
+  let shotId = 0;
   let hazardDamage = 0;
+  let fellThisLife = false;
   let muted = false;
-  let currentRound: string | null = net.getRound();
+  let connection: RelayConnection | null = null;
+  let connectionState: ConnectionState = 'idle';
+  let currentRound: string | null = null;
+  let myId: string | null = null;
+  let spectator = false;
+  /** Relay time the remote players are drawn at this frame; null until the clock is known. */
+  let renderTime: number | null = null;
+  let lastPoseSentAt = -Infinity;
+  let lastPoseSent: SentPose | null = null;
   const pickupAvailableAt = level.pickups.map(() => 0);
   const remotes = new Map<string, RemoteEntry>();
+  let scores = new Map<string, Score>();
+  let scoresChanged = true;
   let feed: FeedItem[] = [];
   let feedId = 0;
   let hitMarker: HitMarker = 'hit';
   let hitMarkerSeq = 0;
   let damageSeq = 0;
   let scoreboard: ScoreRow[] = [];
-  let kills = 0;
-  let scoreboardAt = -Infinity;
   let lastFrame = performance.now();
   const eye: Vec3 = [0, 0, 0];
 
@@ -153,16 +190,20 @@ export const createArenaEngine = ({
     1 - Math.min(1, distanceXZ(position, body.position) / HEARING_DISTANCE)
   );
 
-  const spawn = (now: number) => {
-    const others = [...remotes.values()].map((remote) => remote.pose.p);
-    const point = pickSpawn(level.spawns, others, Math.random);
-    body.position = [...point.position];
+  const placeBody = (p: Vec3, facing: number) => {
+    body.position = [...p];
     body.velocity = [0, 0, 0];
     body.grounded = false;
-    ({ yaw } = point);
+    yaw = facing;
     pitch = 0;
-    combat = respawn(combat, now);
     hazardDamage = 0;
+    fellThisLife = false;
+  };
+
+  /** Where to stand until the relay says where we are (its welcome). */
+  const placeLocally = () => {
+    const point = pickSpawn(level.spawns, [], Math.random);
+    placeBody(point.position, point.yaw);
   };
 
   const pushFeed = (killer: string, victim: string, now: number) => {
@@ -172,34 +213,143 @@ export const createArenaEngine = ({
     });
   };
 
-  const applyDamage = (amount: number, sourceId: string, now: number) => {
-    const selfId = getContext().currentUserId;
-    if (!selfId) return;
-    const outcome = takeDamage(combat, amount, sourceId, selfId, now);
-    combat = outcome.state;
-    if (outcome.taken > 0) damageSeq += 1;
-    if (outcome.died) {
+  const send = (message: Parameters<RelayConnection['send']>[0]) => connection?.send(message);
+
+  const handleWelcome = (message: Extract<ServerMessage, { type: 'welcome' }>, now: number) => {
+    myId = message.you;
+    ({ spectator } = message);
+    snapshots.clear();
+    const others = message.players.filter((player) => player.id !== message.you);
+    if (others.length) {
+      snapshots.apply({ type: SERVER_MESSAGE.SNAPSHOT, t: message.now, players: others.map(snapshotEntryOf) });
+    }
+    const me = message.players.find((player) => player.id === message.you);
+    combat = createCombatState(now);
+    if (me) {
+      placeBody(me.p, me.y);
+      combat = { ...combat, health: me.hp, alive: me.alive };
+    }
+    scores = new Map(Object.entries(message.scores)
+      .map(([userId, [kills, deaths]]) => [userId, { kills, deaths }]));
+    scoresChanged = true;
+    lastPoseSent = null;
+  };
+
+  const handleKill = (by: string, to: string, now: number) => {
+    pushFeed(by, to, now);
+    if (to === myId) {
+      combat = {
+        ...combat,
+        health: 0,
+        alive: false,
+        deaths: combat.deaths + 1,
+        lastKiller: by,
+        diedAt: now,
+      };
       play('death');
-      pushFeed(sourceId, selfId, now);
-    } else if (outcome.taken > 0) {
-      play('pain');
+    } else if (by === myId) {
+      play('frag');
     }
   };
 
-  const handleRoundAndRestore = (now: number) => {
-    const round = net.getRound();
-    if (round !== currentRound) {
-      currentRound = round;
-      combat = resetForRound(now);
-      localHits = [];
-      feed = [];
-      spawn(now);
+  const handleRemoteShot = (message: Extract<ServerMessage, { type: 'shot' }>, now: number) => {
+    const remote = remotes.get(message.by);
+    if (!remote) return;
+    remote.avatar.flash(now);
+    const from = remote.avatar.muzzlePosition();
+    const dir = aimDirection(message.y, message.x);
+    const distance = rayBoxes(from, dir, world.solids, REMOTE_TRACER_RANGE);
+    const remoteWeapon = weaponAt(message.w);
+    effects.tracer(from, pointAlong(from, dir, distance), WEAPONS[remoteWeapon].tracerColor, now);
+    play(SOUND_BY_WEAPON[remoteWeapon], volumeAt(from));
+  };
+
+  /** Every relay message lands here as it arrives, also while the tab is in the background. */
+  const handleMessage = (message: ServerMessage) => {
+    const now = performance.now();
+    switch (message.type) {
+      case SERVER_MESSAGE.WELCOME:
+        handleWelcome(message, now);
+        return;
+      case SERVER_MESSAGE.SNAPSHOT:
+        snapshots.apply(message);
+        return;
+      case SERVER_MESSAGE.HIT:
+        if (message.to === myId) {
+          combat = { ...combat, health: message.hp };
+          damageSeq += 1;
+          if (message.hp > 0) play('pain');
+        } else if (message.by === myId) {
+          hitMarker = message.head ? 'head' : 'hit';
+          hitMarkerSeq += 1;
+          play(message.head ? 'headshot' : 'hit');
+        }
+        return;
+      case SERVER_MESSAGE.HEALTH:
+        if (message.id === myId) combat = { ...combat, health: message.hp };
+        return;
+      case SERVER_MESSAGE.KILL:
+        handleKill(message.by, message.to, now);
+        return;
+      case SERVER_MESSAGE.SPAWN:
+        if (message.id !== myId) return;
+        placeBody(message.p, message.y);
+        combat = respawn(combat, now);
+        play('respawn');
+        return;
+      case SERVER_MESSAGE.SCORES:
+        scores = new Map(Object.entries(message.scores)
+          .map(([userId, [kills, deaths]]) => [userId, { kills, deaths }]));
+        scoresChanged = true;
+        return;
+      case SERVER_MESSAGE.SHOT:
+        handleRemoteShot(message, now);
+        return;
+      case SERVER_MESSAGE.LEAVE:
+        snapshots.remove(message.id);
+        return;
+      default:
     }
-    const restored = net.takeRestoredOwn();
-    if (!restored) return;
-    shots = Math.max(shots, restored.s);
-    hitSeq = Math.max(hitSeq, restored.hn);
-    if (restored.r === currentRound) combat = restoreScore(combat, restored);
+  };
+
+  const disconnect = () => {
+    connection?.close();
+    connection = null;
+    connectionState = 'idle';
+    myId = null;
+    renderTime = null;
+    snapshots.clear();
+  };
+
+  const connect = (round: string) => {
+    const context = getContext();
+    if (!context.sessionToken) {
+      connectionState = 'failed';
+      onConnectionStatus('failed');
+      return;
+    }
+    connection = createRelayConnection({
+      url: context.relayUrl,
+      sessionToken: context.sessionToken,
+      round,
+      onMessage: handleMessage,
+      onStatus: (status) => {
+        connectionState = status;
+        onConnectionStatus(status);
+      },
+    });
+  };
+
+  /** A new round is a new room on the relay: everything starts over there. */
+  const followRound = () => {
+    const { round } = getContext();
+    if (round === currentRound) return;
+    currentRound = round;
+    disconnect();
+    feed = [];
+    scores = new Map();
+    scoresChanged = true;
+    if (round) connect(round);
   };
 
   const look = (lookX: number, lookY: number) => {
@@ -213,18 +363,26 @@ export const createArenaEngine = ({
     viewModel.setWeapon(weapon);
   };
 
-  const movePlayer = (intent: MoveIntent, dt: number, now: number) => {
+  /** The level hurts us here; the relay applies it (a batch at a time, to spare messages). */
+  const reportLevelDamage = (amount: number, cause: string) => {
+    send({
+      type: 'env', kind: ENV_KIND.DAMAGE, amount, cause,
+    });
+  };
+
+  const movePlayer = (intent: MoveIntent, dt: number) => {
     const events = stepPlayer(body, intent, dt, world);
     if (events.jumped) play('jump');
     if (events.launched) play('pad');
     hazardDamage += events.hazardDamage;
-    if (hazardDamage >= 1) {
+    if (hazardDamage >= ENV_DAMAGE_BATCH) {
       const whole = Math.floor(hazardDamage);
       hazardDamage -= whole;
-      applyDamage(whole, getContext().currentUserId ?? '', now);
+      reportLevelDamage(whole, 'slime');
     }
-    if (body.position[1] < level.killY) {
-      applyDamage(LETHAL_DAMAGE, getContext().currentUserId ?? '', now);
+    if (body.position[1] < level.killY && !fellThisLife) {
+      fellThisLife = true;
+      reportLevelDamage(MAX_HEALTH, 'fall');
     }
   };
 
@@ -238,19 +396,24 @@ export const createArenaEngine = ({
       const near = distanceXZ(pickup.position, body.position) < PICKUP_RADIUS
         && Math.abs(body.position[1] - pickup.position[1]) < PICKUP_REACH_HEIGHT;
       if (!near) return;
-      combat = heal(combat, pickup.heal);
       pickupAvailableAt[i] = now + PICKUP_RESPAWN_MS;
+      send({
+        type: 'env', kind: ENV_KIND.HEAL, amount: pickup.heal, cause: 'kit',
+      });
       play('pickup');
     });
   };
 
-  /** Draws remote players at their interpolated pose; returns the ones a shot can hit. */
-  const updateRemotes = (dt: number, now: number): ShotTarget[] => {
+  /** Draws remote players where the relay had them `interpolationDelayMs` ago. */
+  const updateRemotes = (dt: number): ShotTarget[] => {
     const context = getContext();
     const others = Math.max(0, context.maxPlayers - 1);
-    const ids = net.activeUserIds(now)
-      .map((userId) => ({ userId, latest: net.latest(userId)! }))
-      .sort((a, b) => distanceXZ(a.latest.p, body.position) - distanceXZ(b.latest.p, body.position))
+    const ids = renderTime === null ? [] : snapshots.userIds()
+      .filter((userId) => userId !== myId && snapshots.latest(userId)?.on)
+      .map((userId) => ({ userId, latest: snapshots.latest(userId)! }))
+      .sort((a, b) => (
+        distanceXZ(a.latest.pose.p, body.position) - distanceXZ(b.latest.pose.p, body.position)
+      ))
       .slice(0, others);
     const keep = new Set(ids.map(({ userId }) => userId));
     [...remotes.entries()].forEach(([userId, remote]) => {
@@ -275,14 +438,14 @@ export const createArenaEngine = ({
         };
         remotes.set(userId, remote);
       }
-      if (!net.sample(userId, now, remote.pose)) return;
+      if (!snapshots.sample(userId, renderTime!, remote.pose)) return;
       const { pose } = remote;
       const moved = remote.previous && dt > 0 ? distanceXZ(remote.previous, pose.p) / dt : 0;
       remote.speed = remote.speed * SPEED_SMOOTHING + moved * (1 - SPEED_SMOOTHING);
       remote.previous = [...pose.p];
-      const alive = latest.h > 0;
+      const { alive } = latest;
       remote.avatar.update({
-        pose, speed: remote.speed, alive, dt, now,
+        pose, speed: remote.speed, alive, dt, now: performance.now(),
       });
       const user = context.users[userId];
       remote.avatar.setName(user?.name ?? context.fallbackName, user?.color ?? '#ffffff');
@@ -293,44 +456,29 @@ export const createArenaEngine = ({
     return targets;
   };
 
-  const handleRemoteEvents = (now: number) => {
-    const selfId = getContext().currentUserId;
-    net.drainIncomingHits().forEach((hit) => applyDamage(hit.damage, hit.from, now));
-    net.drainFrags().forEach((frag) => {
-      pushFeed(frag.killer, frag.victim, now);
-      if (selfId && frag.killer === selfId && frag.victim !== selfId) play('frag');
-    });
-    net.drainShots().forEach(({ userId }) => {
-      const remote = remotes.get(userId);
-      const latest = net.latest(userId);
-      if (!remote || !latest) return;
-      remote.avatar.flash(now);
-      const from = remote.avatar.muzzlePosition();
-      const dir = aimDirection(remote.pose.y, remote.pose.x);
-      const distance = rayBoxes(from, dir, world.solids, REMOTE_TRACER_RANGE);
-      const remoteWeapon = weaponAt(latest.w);
-      effects.tracer(from, pointAlong(from, dir, distance), WEAPONS[remoteWeapon].tracerColor, now);
-      play(SOUND_BY_WEAPON[remoteWeapon], volumeAt(from));
-    });
-  };
-
+  /**
+   * Shoots with the same pellets the relay will regenerate from the seed. Tracers and sparks show
+   * at once; hit markers and damage wait for the relay's verdict.
+   */
   const fire = (targets: ShotTarget[], now: number) => {
     const definition = WEAPONS[weapon];
     if (!canFire(lastShotAt, now, definition)) return;
     lastShotAt = now;
-    shots += 1;
-    const directions = pelletDirections(yaw, pitch, definition, Math.random);
+    shotId += 1;
+    const seed = Math.floor(Math.random() * SEED_RANGE);
+    const directions = pelletDirections(yaw, pitch, definition, seededRandom(seed));
     const result = resolveShot(eye, directions, world.solids, targets, definition);
-    result.damageByUser.forEach((damage, userId) => {
-      hitSeq += 1;
-      localHits.push({
-        n: hitSeq, u: userId, d: Math.round(damage), at: now,
+    if (renderTime !== null) {
+      send({
+        type: 'shot',
+        id: shotId,
+        vt: renderTime,
+        o: [...eye],
+        y: wrapAngle(yaw),
+        x: pitch,
+        w: weaponIndex(weapon),
+        seed,
       });
-    });
-    if (result.damageByUser.size) {
-      hitMarker = result.headshot ? 'head' : 'hit';
-      hitMarkerSeq += 1;
-      play(result.headshot ? 'headshot' : 'hit');
     }
     const forward = aimDirection(yaw, pitch);
     const right: Vec3 = [Math.cos(yaw), 0, -Math.sin(yaw)];
@@ -357,50 +505,49 @@ export const createArenaEngine = ({
     camera.rotation.set(pitch, yaw, combat.alive ? 0 : CAMERA.deadRoll);
   };
 
-  const publish = (now: number) => {
-    if (!currentRound) return;
-    localHits = recentHits(localHits, now);
-    const payload: PlayerPayload = {
-      r: currentRound,
-      on: true,
-      p: [...body.position],
-      y: yaw,
-      x: pitch,
-      h: combat.health,
+  /** Sends our pose at most 20 times a second, and only when it changed (or as a keepalive). */
+  const sendPose = (now: number) => {
+    if (connectionState !== 'open' || !myId || spectator) return;
+    const elapsed = now - lastPoseSentAt;
+    if (elapsed < RELAY_TIMING.snapshotIntervalMs) return;
+    const pose: SentPose = {
+      p: [round2(body.position[0]), round2(body.position[1]), round2(body.position[2])],
+      y: round2(wrapAngle(yaw)),
+      x: round2(pitch),
       w: weaponIndex(weapon),
-      s: shots,
-      t: 0,
-      hn: hitSeq,
-      dt: combat.deaths,
-      lk: combat.lastKiller,
-      kb: combat.killedBy,
-      hits: toWireHits(localHits),
     };
-    net.publishLocal(payload, now);
+    const changed = !lastPoseSent
+      || distanceXZ(pose.p, lastPoseSent.p) >= POSE_SEND.minMove
+      || Math.abs(pose.p[1] - lastPoseSent.p[1]) >= POSE_SEND.minMove
+      || Math.abs(wrapAngle(pose.y - lastPoseSent.y)) >= POSE_SEND.minTurn
+      || Math.abs(pose.x - lastPoseSent.x) >= POSE_SEND.minTurn
+      || pose.w !== lastPoseSent.w;
+    if (!changed && elapsed < POSE_SEND.keepaliveMs) return;
+    send({
+      type: 'pose', p: pose.p, y: pose.y, x: pose.x, w: pose.w, on: true,
+    });
+    lastPoseSent = pose;
+    lastPoseSentAt = now;
   };
 
-  const refreshScoreboard = (now: number) => {
-    if (now - scoreboardAt < SCOREBOARD_REFRESH_MS) return;
-    scoreboardAt = now;
-    const selfId = getContext().currentUserId;
-    const snapshots = net.roundSnapshots();
-    const local = net.getLocal();
-    if (selfId && local) snapshots.set(selfId, local);
-    const rows = scoreboardRows(computeScores(snapshots));
-    kills = rows.find((row) => row.userId === selfId)?.kills ?? 0;
+  const refreshScoreboard = () => {
+    if (!scoresChanged) return;
+    scoresChanged = false;
+    const rows = scoreboardRows(scores);
     if (!sameRows(rows, scoreboard)) scoreboard = rows;
   };
 
   const updateHud = (locked: boolean, showScoreboard: boolean, now: number) => {
     feed = pruneFeed(feed, now);
-    refreshScoreboard(now);
+    refreshScoreboard();
+    const own = myId ? scores.get(myId) : undefined;
     hud.setState({
       locked,
       health: combat.health,
       alive: combat.alive,
       weapon,
-      kills,
-      deaths: combat.deaths,
+      kills: own?.kills ?? 0,
+      deaths: own?.deaths ?? 0,
       killer: combat.lastKiller,
       respawnIn: respawnInSeconds(combat, now),
       feed,
@@ -410,6 +557,7 @@ export const createArenaEngine = ({
       hitMarkerSeq,
       damageSeq,
       muted,
+      connection: connectionState,
     });
   };
 
@@ -419,7 +567,9 @@ export const createArenaEngine = ({
     lastFrame = now;
     const controls = input.read();
 
-    handleRoundAndRestore(now);
+    followRound();
+    const relayNow = connection?.clock.relayNow(now) ?? null;
+    renderTime = relayNow === null ? null : relayNow - RELAY_TIMING.interpolationDelayMs;
     if (controls.locked) look(controls.lookX, controls.lookY);
     if (controls.weaponSlot !== null) switchWeapon(weaponAt(controls.weaponSlot));
     if (controls.weaponStep) switchWeapon(cycleWeapon(weapon, controls.weaponStep));
@@ -440,21 +590,17 @@ export const createArenaEngine = ({
         : {
           forward: 0, strafe: 0, jump: false, walk: false, yaw,
         };
-      movePlayer(intent, dt, now);
+      movePlayer(intent, dt);
       updatePickups(dt, now);
-    } else if (respawnDue(combat, now)) {
-      spawn(now);
-      play('respawn');
     }
 
-    const targets = updateRemotes(dt, now);
-    handleRemoteEvents(now);
+    const targets = updateRemotes(dt);
     placeCamera();
-    if (controls.firing && controls.locked && combat.alive) fire(targets, now);
+    if (controls.firing && controls.locked && combat.alive && !spectator) fire(targets, now);
     placeCamera();
     viewModel.update(dt, Math.hypot(body.velocity[0], body.velocity[2]), now, combat.alive);
     effects.update(now);
-    publish(now);
+    sendPose(now);
     updateHud(controls.locked, controls.scoreboard, now);
     renderer.render(scene, camera);
   };
@@ -477,16 +623,15 @@ export const createArenaEngine = ({
   };
   canvas.addEventListener('click', requestPlay);
 
-  spawn(performance.now());
+  placeLocally();
   renderer.setAnimationLoop(frame);
 
   return {
     requestPlay,
     dispose: () => {
       renderer.setAnimationLoop(null);
-      const local = net.getLocal();
-      // Others stop drawing us right away instead of waiting for the entry to go stale.
-      if (local) net.publishLocal({ ...local, on: false }, performance.now(), true);
+      // Closing the socket is what takes us out of the room for everyone else.
+      disconnect();
       resizeObserver.disconnect();
       canvas.removeEventListener('click', requestPlay);
       input.dispose();
