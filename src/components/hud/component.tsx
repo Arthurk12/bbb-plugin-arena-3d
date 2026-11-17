@@ -45,6 +45,13 @@ function Hud({ hud, session, onPlay }: HudProps) {
 
   return (
     <Styled.Layer>
+      {state.connection === 'connecting' || state.connection === 'failed' ? (
+        <Styled.Notice role="status">
+          {intl.formatMessage(state.connection === 'failed'
+            ? intlMessages.connectionFailed
+            : intlMessages.connecting)}
+        </Styled.Notice>
+      ) : null}
       {state.alive && state.locked ? <Styled.Crosshair /> : null}
       {state.hitMarkerSeq > 0 ? (
         <Styled.HitMarker key={state.hitMarkerSeq} $head={state.hitMarker === 'head'} />

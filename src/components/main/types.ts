@@ -6,11 +6,14 @@ import { ArenaSession } from '../../session/types';
 export interface ArenaPluginProps {
   pluginUuid: string;
   pluginName: string;
+  /** URL of this plugin's script: the relay lives on the same BBB server. */
+  scriptSrc: string | null;
 }
 
 export interface MainContentProps {
   pluginApi: PluginApi;
   intl: IntlShape;
+  scriptSrc: string | null;
 }
 
 export interface AppsGalleryEntryOptions {
