@@ -107,15 +107,38 @@ const PAINTERS: Partial<Record<MaterialId, Painter>> = {
       ctx.fill();
     }
   },
+  slime: (ctx, size, random) => {
+    ctx.fillStyle = '#9dff7a';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < size / 2; i += 1) {
+      ctx.fillStyle = random() > 0.5 ? '#c8ff9e' : '#6fe05a';
+      ctx.beginPath();
+      ctx.arc(random() * size, random() * size, 2 + random() * 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
 };
 
-const createTexture = (material: MaterialId, painter: Painter, seed: number): THREE.Texture => {
+/**
+ * Painting happens once per page: opening the arena again reuses the canvases (each WebGL
+ * context still uploads its own copy).
+ */
+const paintedCanvases = new Map<MaterialId, HTMLCanvasElement>();
+
+const paintedCanvas = (material: MaterialId, painter: Painter, seed: number): HTMLCanvasElement => {
+  const cached = paintedCanvases.get(material);
+  if (cached) return cached;
   const canvas = document.createElement('canvas');
   canvas.width = TEXTURE_SIZE;
   canvas.height = TEXTURE_SIZE;
   const ctx = canvas.getContext('2d');
   if (ctx) painter(ctx, TEXTURE_SIZE, seededRandom(seed));
-  const texture = new THREE.CanvasTexture(canvas);
+  paintedCanvases.set(material, canvas);
+  return canvas;
+};
+
+const createTexture = (material: MaterialId, painter: Painter, seed: number): THREE.Texture => {
+  const texture = new THREE.CanvasTexture(paintedCanvas(material, painter, seed));
   texture.name = material;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;

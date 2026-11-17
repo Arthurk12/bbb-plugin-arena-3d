@@ -30,7 +30,7 @@ import {
 import { createInputController } from '../input/controller';
 import { MAX_PITCH, MOUSE_SENSITIVITY } from '../input/constants';
 import { buildLevel } from '../level/builder';
-import { FOG, LIGHTS, SKY_COLOR } from '../level/constants';
+import { FOG, LIGHTS, SKY, SKY_COLOR } from '../level/constants';
 import { ARENA_LEVEL } from '../level/layout';
 import { pickSpawn } from '../level/service';
 import { PLAYER } from '../player/constants';
@@ -46,7 +46,7 @@ import {
 import { ShotTarget, WeaponId } from '../weapons/types';
 import { createViewModel } from '../weapons/view-model';
 import {
-  CAMERA, ENV_DAMAGE_BATCH, MAX_FRAME_DT, MAX_TRACERS_PER_SHOT, PICKUP_REACH_HEIGHT, PICKUP_SPIN,
+  CAMERA, ENV_DAMAGE_BATCH, MAX_FRAME_DT, MAX_TRACERS_PER_SHOT, PICKUP_REACH_HEIGHT,
   POSE_SEND, SPEED_SMOOTHING,
 } from './constants';
 import { ArenaEngine, EngineOptions } from './types';
@@ -131,7 +131,7 @@ export const createArenaEngine = ({
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY_COLOR);
-  scene.fog = new THREE.Fog(SKY_COLOR, FOG.near, FOG.far);
+  scene.fog = new THREE.Fog(SKY.horizon, FOG.near, FOG.far);
   scene.add(new THREE.HemisphereLight(
     LIGHTS.hemisphereSky,
     LIGHTS.hemisphereGround,
@@ -387,12 +387,10 @@ export const createArenaEngine = ({
     }
   };
 
-  const updatePickups = (dt: number, now: number) => {
+  const updatePickups = (now: number) => {
     level.pickups.forEach((pickup, i) => {
-      const mesh = builtLevel.pickups[i];
       const available = now >= pickupAvailableAt[i];
-      mesh.visible = available;
-      mesh.rotation.y += PICKUP_SPIN * dt;
+      builtLevel.setPickupAvailable(i, available);
       if (!available || !canHeal(combat)) return;
       const near = distanceXZ(pickup.position, body.position) < PICKUP_RADIUS
         && Math.abs(body.position[1] - pickup.position[1]) < PICKUP_REACH_HEIGHT;
@@ -591,13 +589,14 @@ export const createArenaEngine = ({
           forward: 0, strafe: 0, jump: false, walk: false, yaw,
         };
       movePlayer(intent, dt);
-      updatePickups(dt, now);
+      updatePickups(now);
     }
 
     const targets = updateRemotes(dt);
     placeCamera();
     if (controls.firing && controls.locked && combat.alive && !spectator) fire(targets, now);
     placeCamera();
+    builtLevel.animate(now, camera.position);
     viewModel.update(dt, Math.hypot(body.velocity[0], body.velocity[2]), now, combat.alive);
     effects.update(now);
     sendPose(now);

@@ -1,4 +1,4 @@
-import type { Group } from 'three';
+import type { Group, Mesh, Vector3 } from 'three';
 import { Vec3 } from '../../commons/types';
 import { Aabb } from '../geometry/types';
 
@@ -60,9 +60,18 @@ export interface StairsOptions {
   material: MaterialId;
 }
 
+/** The sky dome; see `createSky`. */
+export interface Sky {
+  mesh: Mesh;
+  /** Moves the dome with the viewer and advances the stars' twinkle. */
+  update: (now: number, viewer: Vector3) => void;
+}
+
 /** The level's meshes, ready to add to a scene. */
 export interface BuiltLevel {
   group: Group;
-  /** One mesh per pickup, in the order of `LevelDefinition.pickups`. */
-  pickups: Group[];
+  /** Per-frame animation (sky, neon, pads, slime, health kits); allocates nothing. */
+  animate: (now: number, viewer: Vector3) => void;
+  /** Shows or hides a health kit and its glow (index in `LevelDefinition.pickups`). */
+  setPickupAvailable: (index: number, on: boolean) => void;
 }

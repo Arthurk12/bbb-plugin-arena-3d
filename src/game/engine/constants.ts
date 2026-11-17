@@ -13,8 +13,6 @@ export const CAMERA = {
 /** Feet this far below a pickup's base or above it still grab it. */
 export const PICKUP_REACH_HEIGHT = 1.5; // meters
 
-export const PICKUP_SPIN = 2; // radians per second
-
 /** Shotgun tracers drawn per shot; every pellet still counts. */
 export const MAX_TRACERS_PER_SHOT = 3;
 
