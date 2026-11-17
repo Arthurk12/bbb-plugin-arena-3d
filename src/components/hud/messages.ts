@@ -81,4 +81,14 @@ export const intlMessages = defineMessages({
     description: 'Shown while game sounds are off',
     defaultMessage: 'Sound off (M)',
   },
+  connecting: {
+    id: 'hud.connecting',
+    description: 'Shown while the game connects to its server',
+    defaultMessage: 'Connecting to the arena server…',
+  },
+  connectionFailed: {
+    id: 'hud.connectionFailed',
+    description: 'Shown when the game cannot reach its server; it keeps retrying',
+    defaultMessage: "Can't reach the arena server. Trying again…",
+  },
 });

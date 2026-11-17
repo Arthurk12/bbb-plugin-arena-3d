@@ -1,5 +1,5 @@
 import { ArenaUser } from '../../commons/types';
-import { GameNet } from '../../net/types';
+import { ConnectionStatus } from '../../relay-client/types';
 import { Store } from '../../store/types';
 import { HudState } from '../hud/types';
 
@@ -11,14 +11,21 @@ export interface EngineContext {
   fallbackName: string;
   maxPlayers: number;
   renderScale: number;
+  /** Round of the running match (a room on the relay); null without a match. */
+  round: string | null;
+  /** WebSocket URL of the relay, without the session token. */
+  relayUrl: string;
+  /** BBB session token, checked by nginx before the relay sees us; null if unavailable. */
+  sessionToken: string | null;
 }
 
 export interface EngineOptions {
   container: HTMLElement;
-  net: GameNet;
   hud: Store<HudState>;
   getContext: () => EngineContext;
   onWebglError: (error: unknown) => void;
+  /** Called whenever the relay connection changes state. */
+  onConnectionStatus: (status: ConnectionStatus) => void;
 }
 
 export interface ArenaEngine {

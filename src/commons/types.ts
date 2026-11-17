@@ -18,3 +18,10 @@ export interface ArenaUser {
   /** BBB user color (`#rrggbb`), used for name tags and the scoreboard. */
   color: string;
 }
+
+/** A pose as drawn: feet position, yaw, pitch. */
+export interface Pose {
+  p: Vec3;
+  y: number;
+  x: number;
+}

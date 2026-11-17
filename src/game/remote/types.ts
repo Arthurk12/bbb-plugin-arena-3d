@@ -1,5 +1,5 @@
 import type { Group } from 'three';
-import { Pose } from '../../net/types';
+import { Pose } from '../../commons/types';
 
 export interface AvatarFrame {
   pose: Pose;

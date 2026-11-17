@@ -15,3 +15,5 @@ export const useDebug = () => useSettingsContext('useDebug').settings.debug;
 export const useMaxPlayers = () => useSettingsContext('useMaxPlayers').settings.maxPlayers;
 
 export const useRenderScale = () => useSettingsContext('useRenderScale').settings.renderScale;
+
+export const useRelayUrl = () => useSettingsContext('useRelayUrl').settings.relayUrl;

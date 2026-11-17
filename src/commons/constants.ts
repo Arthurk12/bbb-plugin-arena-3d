@@ -1,6 +1,5 @@
 export const DATA_CHANNELS = {
   MATCH: 'match',
-  PLAYERS: 'players',
 } as const;
 
 export const LOG_CODES = {
@@ -11,7 +10,7 @@ export const LOG_CODES = {
   USERS_ERROR: 'arena3d_users_error',
   MATCH_ERROR: 'arena3d_match_error',
   MATCH_CHANGED: 'arena3d_match_changed',
-  PLAYERS_ERROR: 'arena3d_players_error',
+  RELAY_FAILED: 'arena3d_relay_failed',
   GAME_LOAD_ERROR: 'arena3d_game_load_error',
   WEBGL_ERROR: 'arena3d_webgl_error',
   FRAG: 'arena3d_frag',

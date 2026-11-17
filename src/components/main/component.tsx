@@ -5,10 +5,9 @@ import {
 import { BbbPluginSdk, PluginApi } from 'bigbluebutton-html-plugin-sdk';
 import { useGetInternationalization } from '../../commons/hooks';
 import { useCurrentUserRole, useHiddenArena, useMatchState } from '../../match/hooks';
-import { createGameNet } from '../../net/net';
-import { usePlayersTransport } from '../../net/hooks';
 import { SettingsProvider } from '../../settings/context';
-import { useMaxPlayers, useRenderScale, useSettingsReady } from '../../settings/hooks';
+import { useMaxPlayers, useRelayUrl, useRenderScale, useSettingsReady } from '../../settings/hooks';
+import { resolveRelayUrl } from '../../relay-client/url';
 import { createStore } from '../../store/service';
 import { ArenaSession, ArenaSessionState } from '../../session/types';
 import { useMeetingUsers } from '../../users/hooks';
@@ -19,7 +18,7 @@ import {
 import { ArenaPluginProps, MainContentProps } from './types';
 
 /** Wires the match and the players to the client's UI: gallery entry, media area, admin modal. */
-function MainContent({ pluginApi, intl }: MainContentProps) {
+function MainContent({ pluginApi, intl, scriptSrc }: MainContentProps) {
   const { isModerator, userId: currentUserId } = useCurrentUserRole(pluginApi);
   const {
     match, start, newRound, stop,
@@ -29,16 +28,14 @@ function MainContent({ pluginApi, intl }: MainContentProps) {
   const settingsReady = useSettingsReady();
   const maxPlayers = useMaxPlayers();
   const renderScale = useRenderScale();
-  const { presentUserIds, users } = useMeetingUsers(pluginApi);
-
-  const net = useMemo(createGameNet, []);
-  const { resetPlayers } = usePlayersTransport({
-    pluginApi,
-    net,
-    currentUserId,
-    round: matchActive ? match!.round : null,
-    presentUserIds,
-  });
+  const { users } = useMeetingUsers(pluginApi);
+  const relaySetting = useRelayUrl();
+  const relayUrl = useMemo(
+    () => resolveRelayUrl(relaySetting, scriptSrc, window.location.href),
+    [relaySetting, scriptSrc],
+  );
+  const sessionToken = pluginApi.getSessionToken?.() ?? null;
+  const round = matchActive ? match!.round : null;
 
   const session = useMemo<ArenaSession>(() => ({
     state: createStore<ArenaSessionState>({
@@ -48,15 +45,17 @@ function MainContent({ pluginApi, intl }: MainContentProps) {
       users,
       maxPlayers,
       renderScale,
+      round,
+      relayUrl,
+      sessionToken,
     }),
-    net,
   }), []);
 
   useEffect(() => {
     session.state.setState({
-      intl, currentUserId, users, maxPlayers, renderScale,
+      intl, currentUserId, users, maxPlayers, renderScale, round, relayUrl, sessionToken,
     });
-  }, [intl, currentUserId, users, maxPlayers, renderScale]);
+  }, [intl, currentUserId, users, maxPlayers, renderScale, round, relayUrl, sessionToken]);
 
   // Wait for the settings so the first frame already renders at the configured scale.
   const showArena = matchActive && !hidden && settingsReady;
@@ -68,10 +67,6 @@ function MainContent({ pluginApi, intl }: MainContentProps) {
   const closeAdmin = useCallback(() => setAdminOpen(false), []);
   const showArenaAgain = useCallback(() => setHidden(false), [setHidden]);
   const toggleHidden = useCallback(() => setHidden(!hidden), [setHidden, hidden]);
-  const stopMatch = useCallback(() => {
-    stop();
-    resetPlayers();
-  }, [stop, resetPlayers]);
 
   useAppsGalleryEntry({
     pluginApi, intl, isModerator, matchActive, onOpenAdmin: openAdmin, onShowArena: showArenaAgain,
@@ -89,13 +84,13 @@ function MainContent({ pluginApi, intl }: MainContentProps) {
       onClose={closeAdmin}
       matchActive={matchActive}
       hidden={hidden}
-      controls={{ start, newRound, stop: stopMatch }}
+      controls={{ start, newRound, stop }}
       onShowArena={showArenaAgain}
     />
   );
 }
 
-function ArenaPlugin({ pluginUuid: uuid }: ArenaPluginProps) {
+function ArenaPlugin({ pluginUuid: uuid, scriptSrc }: ArenaPluginProps) {
   BbbPluginSdk.initialize(uuid);
   const pluginApi: PluginApi = BbbPluginSdk.getPluginApi(uuid);
   const shouldUnmountPlugin = pluginApi.useShouldUnmountPlugin!();
@@ -105,7 +100,7 @@ function ArenaPlugin({ pluginUuid: uuid }: ArenaPluginProps) {
 
   return (
     <SettingsProvider pluginApi={pluginApi}>
-      <MainContent pluginApi={pluginApi} intl={intl} />
+      <MainContent pluginApi={pluginApi} intl={intl} scriptSrc={scriptSrc} />
     </SettingsProvider>
   );
 }
